@@ -1,0 +1,216 @@
+\section{Other computation techniques}
+
+\subsection{Perturbation of \boldmath $M$ }
+
+Theoretically, if $\mathcal{A}$ is full rank, $M$ will be positive definite. However, in practice, due to numerical errors or inputs where $\mathcal{A}$ is not full rank, $M$ may not be a positive definite matrix, and Cholesky decomposition may fail.  
+To avoid such numerical difficulties, SDPT3 applies a small perturbation to $M$ using sufficiently small $\epsilon > 0$ and $\lambda > 0$:
+\[
+  M \;\leftarrow\; M + \epsilon I + \lambda \sum_{p\in P} A^p (A^p)^T
+\]
+
+\subsection{Handling free variables}
+If there exists any $p \in P$ such that $\nu^p = 0$, the problem (P)(D) can be transformed into the following 3-parameter Homogeneous self-dual (HSD) model \cite{Wright1997}:
+\[
+  \begin{array}{cl}
+   \min_{x,y,z,\tau,\kappa,\theta} & \bar{\alpha}\,\theta \\[3pt]
+   \text{s.t.}
+   & \begin{pmatrix}
+       0 & -\mathcal{A} & b & -\bar{b}\\
+       \mathcal{A}^T & 0 & -c & \bar{c}\\
+       -b^T & c^T & 0 & -\bar{g}\\
+       \bar{b}^T & -\bar{c}^T & \bar{g} & 0
+     \end{pmatrix}
+     \begin{pmatrix} y \\ x \\ \tau \\ \theta \end{pmatrix}
+   \;+\;
+     \begin{pmatrix} 0 \\ z \\ \kappa \\ 0 \end{pmatrix}
+   =
+     \begin{pmatrix} 0 \\ 0 \\ 0 \\ \bar{\alpha} \end{pmatrix}.
+  \end{array}
+\]
+Given $(x_0,y_0,z_0,\tau_0,\kappa_0,\theta_0)\in 
+  \operatorname{int}(\mathbb{K}) \times \mathbb{R}^m \times \operatorname{int}(\mathbb{K})
+  \times \mathbb{R}^1_+ \times \mathbb{R}^1_+ \times \mathbb{R}^1_+$
+we define
+\begin{gather*}
+    \bar{b} = \frac{1}{\theta_0}(b\tau_0 - \mathcal{A}x_0) \\
+    \bar{c} = \frac{1}{\theta_0}(c\tau_0 - \mathcal{A}^T y_0 - z_0) \\
+    \bar{g} = \frac{1}{\theta_0}(\inprod{c}{x_0} - b^Ty_0 + \kappa_0) \\
+    \bar{\alpha} = \frac{1}{\theta_0} (\inprod{x_0}{z_0} + \tau_0 \kappa_0)
+\end{gather*}
+According to Toh et al.~\cite{toh1999}, if the feasible region of (P)(D) is non-empty but does not contain an interior point, converting to the HSD model and then applying the interior-point method results in longer computation times but yields better accuracy. This approach is implemented in SDPT3.  
+Handling the HSD model requires slight modifications to the algorithm, detailed in \cite{toh1999}.
+
+\medskip
+
+On the other hand, if there exists any $p \in P$ such that $\nu^p \neq 0$, unfortunately, (P)(D) cannot be converted to the HSD model.
+As seen from \eqref{eq:Schur_complement_Mat}, if there exists any $p \in P$ such that $\mathbb{K}^p = \mathbb{R}^{n_p}$, the presence of $A^u$ increases the size of the equation to be solved, making it computationally expensive.
+Therefore, SDPT3 eliminates the free variable $x^p \in \mathbb{R}^{n_p}$ by transforming it into non-negative variables $(x^p_+,\,x^p_-)\in\mathbb{R}^{2n_p}_+$:
+\[
+   x^p = x^p_+ \;-\; x^p_- 
+\]
+
+The downside of this method is numerical instability. In practice, $x^p_+$ and $x^p_-$ tend to become very large as iterations progress, while the corresponding dual variables $z^p_+, z^p_-$ tend to become very small.
+This results in $\operatorname{diag}(x^p_\pm)\,\operatorname{diag}(z^p_\pm)$ becoming extremely ill-conditioned.
+Fortunately, heuristic update formulas can be applied to suppress the increase in $x^p_+$ and $x^p_-$ values, mitigating numerical instability:
+\[
+   x^p_+ \;\leftarrow\; x^p_+ - 0.8\,\min(x^p_+,\,x^p_-),
+   \quad
+   x^p_- \;\leftarrow\; x^p_- - 0.8\,\min(x^p_+,\,x^p_-).
+\]
+Additionally, adding a positive perturbation of the same scale as $\mu$ to $z^p_+, z^p_-$ at each iteration prevents them from becoming excessively small.
+
+\medskip
+
+Even for blocks $p$ where $\mathbb{K}^p=\mathbb{R}^{n_p}_+$, if there exist pairs of non-negative variables that can be transformed into free variables (e.g., if there exist pairs of variables $x^p_i, x^p_j$ such that $(a^p_k)_i = -(a^p_k)_j$ for all $k=1,2,\ldots,m$, $(c^p)_i = -(c^p)_j$, $\nu^p = 0$), similar numerical instability occurs. Therefore, it is necessary to detect such pairs of variables and apply the heuristic update mentioned above.
+
+\subsection{Preprocessing for model transformation}
+
+\subsubsection{Complex input}
+
+In applications such as control engineering, optimization problems on complex semidefinite cones may arise, but they can be reduced to problems on real semidefinite cones.
+Define the following:
+\begin{itemize}
+    \item Complex matrix space $\mathbb{C}^{m\times n}$
+    \item Set of Hermitian matrices $\mathbb{H}^n=\{a \in \mathbb{C}^{n\times n} \mid a = a^H\}$ where $a^H$ denotes the conjugate transpose of $a$.
+    \item Complex positive semidefinite symmetric matrix cone $\mathbb{H}^n_+=\{a \in \mathbb{H}^n \mid x^T a x \geq 0 ~(\forall x\in \mathbb{C}^n)\}$
+    \item $\bar{\mathbb{S}}^{2n}_+ = \{(\begin{smallmatrix}
+    A & B\\
+    C & D
+\end{smallmatrix}) \in \mathbb{S}^{2n}_+ \mid A=D\in \mathbb{S}^n, ~ B=-B^T=C=-C^T\}$
+\end{itemize}
+It is known that $\mathbb{H}^n_+$ and $\bar{\mathbb{S}}^{2n}_+$ are algebraically isomorphic.
+Define the mapping $\Gamma: \mathbb{H}^n\to \mathbb{S}^{2n}$ as
+\[
+  \Gamma(x)
+  := \begin{pmatrix}
+       \operatorname{real}(x) & -\operatorname{imag}(x) \\
+       \operatorname{imag}(x) & \operatorname{real}(x)
+     \end{pmatrix}
+\]
+For example,
+\[
+  x\in \mathbb{H}^n_+
+   \;\;\Longleftrightarrow\;\;
+  \Gamma(x)\in \mathbb{S}^{2n}_+
+\]
+Thus, by transforming variables using $\Gamma(x)= y \in \bar{\mathbb{S}}^{2n_p}_+$, problems on complex semidefinite cones can be reduced to problems on real semidefinite cones.
+
+\subsubsection{Detect diagonal block of $\mathbb{K}^p=\mathbb{S}^{n_p}_+$}
+
+The condition $x\in \mathbb{S}^1_+$ is equivalent to $x\in \mathbb{R}^1_+$.
+In this case, treating $x$ as a simple non-negative real variable improves the computational efficiency of the interior-point method.
+Furthermore, if there are diagonal blocks within the variable matrix of $\mathbb{S}^{n_p}_+$, converting them to non-negative real variables yields similar computational efficiency improvements.
+
+Specifically, for an integer $i$,
+if $(c^p)_{ij}=(c^p)_{ji}=0$ and $(a^p_k)_{ij}=(a^p_k)_{ji}=0$ 
+($\forall j\neq i,\,\forall k$),
+transform $x\in \mathbb{S}^{n_p}_+$ to $(\bar{x},\,\hat{x})\in \mathbb{S}^{n_p-1}_+\times \mathbb{R}^1_+$.
+Here, $\bar{x}$ is the matrix obtained by removing the $i$-th row and column from $x$, and $x_{ij}= x_{ji}=0$ ($\forall j\neq i$).
+
+\begin{example}
+\begin{equation*}
+    \left|
+    \begin{array}{cl}
+        \min & \inprod{\begin{pmatrix}
+            3 & 0 & 1 \\
+            0 & 5 & 0 \\
+            1 & 0 & 2
+        \end{pmatrix}}{X} \\
+        s.t. 
+        & \inprod{\begin{pmatrix}
+            1 & 0 & 0 \\ 
+            0 & 2 & 0 \\ 
+            0 & 0 & 3
+        \end{pmatrix}}{X} = 1 \\
+        & X\in \mathbb{S}^3_+ 
+    \end{array}
+    \right.
+    \Longleftrightarrow
+    \left|
+    \begin{array}{cl}
+        \min & \inprod{\begin{pmatrix}
+            3 & 1 \\
+            1 & 2
+        \end{pmatrix}}{\bar{X}} + 5\hat{x} \\
+        s.t. 
+        & \inprod{\begin{pmatrix}
+            1 & 0 \\ 0 & 3
+        \end{pmatrix}}{\bar{X}} + 2\hat{x} = 1 \\
+        & \bar{X}\in \mathbb{S}^2_+, \quad \hat{x} \in \mathbb{R}^1_+
+    \end{array}
+    \right.
+\end{equation*}
+\end{example}
+Indeed, in SDPLIB's xxx, there are many such diagonal blocks.
+
+\subsubsection{Artificial linear block}
+
+The interior-point method algorithm introduced in this paper assumes $m \geq 1$ and $\exists p\in P ~ \text{s.t.} ~ \nu^p=0$ (mainly for \eqref{eq:NewtonKKT} and \eqref{eq:mu}).
+
+If these conditions are not met, adding one redundant non-negative variable $x^{p_{\max} + 1}$ and one constraint
+\[
+  -\sum_{p\in P} \inprod{e^p}{x^p}_p + x^{p_{\max} + 1} = 0
+\]
+can satisfy the assumptions.
+Specifically, set new parameters as follows:
+\begin{itemize}
+    \item $\mathbb{K}^{p_{\max} + 1} = \mathbb{R}^1_+$
+    \item $a^{p}_1=e^p ~ (p \in P)$, $a^{p_{\max} + 1}_1 = 1$
+    \item $b = 0$
+    \item $c^{p_{\max} +1}=0$
+    \item $\nu^{p_{\max} + 1} = 0$
+\end{itemize}
+
+\subsubsection{Reordering Matrix Variables}
+To determine the positive definiteness of variables $x^p, z^p$, checking whether Cholesky decomposition succeeds is numerically stable.
+Since the interior-point method performs this Cholesky decomposition at each iteration, minimizing fill-in is important.
+SDPT3 reorders matrix variables to minimize fill-in during Cholesky decomposition.
+Specifically, define
+\[
+  t^p = |c^p| + \sum_{k=1}^m |a^p_k|
+\]
+and apply the Reverse Cuthill--Mckee Algorithm to obtain the permutation $\sigma$.
+Finally, transform variables as $(\bar{x}^p)_{ij} = (x^p)_{\sigma(i)\sigma(j)}$.
+
+\begin{example}
+\[
+    t^p = \begin{pmatrix}
+        3 & 0 & 1 \\\
+        0 & 5 & 0 \\\
+        1 & 0 & 2
+    \end{pmatrix}
+\] Applying the Reverse Cuthill-Mckee Algorithm yields $\sigma(1)=3, ~ \sigma(2)=1, ~ \sigma(3)=2$.
+Transforming variables using this permutation results in $\bar{t}^p$:
+\[
+    \bar{t}^p = \begin{pmatrix}
+        3 & 1 & 0 \\
+        1 & 2 & 0 \\
+        0 & 0 & 5
+    \end{pmatrix}
+\]
+which indeed has a smaller bandwidth.
+\end{example}
+
+\subsubsection{Utilizing matrix symmetry}
+In blocks where $\mathbb{K}^p=\mathbb{S}_+^p$, leveraging the symmetry of coefficient matrices can reduce memory usage and computation time for matrix inner products.
+
+Given a real symmetric matrix $A\in \mathbb{S}^n$, define $\operatorname{svec}: \mathbb{S}^n \rightarrow \mathbb{R}^{n(n+1)/2}$ for $i\leq j$ as follows:
+\[ \operatorname{svec}(A)= (a_1^T, a_2^T, \ldots a_n^T)^T \]
+where
+\[ a_j = (f_{j,j} A_{j,j}, ~ f_{j+1,j}A_{j+1,j}, ~ \ldots ~ , ~ f_{n,j} A_{n,j})^T \in \mathbb{R}^{n-j+1} \]
+\[ f_{ij}= \begin{cases} 1 & \text{if} ~ i=j \\ \sqrt{2} & \text{otherwise} \end{cases}\]
+
+\begin{example}
+\[A = \begin{pmatrix}
+    1 & 2 & 3\\
+    2 & 4 & 5\\
+    3 & 5 & 6
+\end{pmatrix} \rightarrow \operatorname{svec}(A) = (1, ~ 2\sqrt{2}, ~ 3\sqrt{2}, ~ 4, ~ 5\sqrt{2}, ~ 6)^T\]
+\end{example}
+
+The following equality holds:
+\[\inprod{A}{A} = \operatorname{svec}(A)^T \operatorname{svec}(A).\]
+Thus, by storing $\operatorname{svec}(A)$ instead of $A$, memory usage and computation time for inner products can be approximately halved.
+SDPT3 adopts the $\operatorname{svec}$ format for storing coefficient matrices $a^p_k$ (while $c^p$, $x^p$, and $z^p$ are stored in matrix form).
+
+

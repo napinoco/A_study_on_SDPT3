@@ -1,0 +1,32 @@
+\section{Summary}
+The pseudo-code for the primal-dual path-following infeasible-interior-point method incorporating various techniques discussed so far is as follows:
+TBA
+% \begin{algorithm}
+% Primal-dual path-following infeasible-interior-point method
+% \begin{algorithmic}[1]
+% \REQUIRE $\sigma\in[0,1)$
+% \STATE Initialize $x,y,z$
+% \STATE xxxxxxxxxxxxxx
+% \FOR{it in $1,2,\ldots,\text{maxit}$}
+%     \STATE Compute the coefficient matrices $M$, $A^u$, $U$, $-D^{-1}$ of equation \eqref{eq:Schur_complement_Mat_aug}
+%     \STATE Compute the Cholesky decomposition of $M$ and the LU decomposition of $S$
+%     \STATE Compute $\mathcal{A}\mathcal{H}R_{dual}$ and $R^u_{dual}$
+%     % \STATE Compute sigma \& mu
+%     \STATE Compute $R_{comp}$
+%     \STATE Compute $\mathcal{A}\mathcal{E}^{-1}R_{comp}$
+%     \STATE Compute $h = R_{prim} + \mathcal{A}\mathcal{E}^{-1}R_{comp} - \mathcal{A}\mathcal{H}R_{dual}$
+%     \STATE Solve equation \eqref{eq:Schur_complement_Mat_aug} to obtain $\delta y, \delta x^u$
+%     \STATE Obtain $\delta x, \delta z$ from equation \eqref{eq:sol_x_z}
+%     \STATE Compute $\mu$ and $\sigma$
+%     % \STATE heuristic stopping criteria
+%     \STATE Compute $R_{comp}$ according to equation \eqref{}
+%     \STATE Compute $h$ according to equation \eqref{}
+%     \STATE 
+%     \STATE Compute dX, dZ
+%     \STATE ... TBA
+%     \IF{$x,y,z$ satisfies the conditions}
+%         \RETURN x,y,z
+%     \ENDIF
+% \ENDFOR
+% \end{algorithmic}
+% \end{algorithm}
