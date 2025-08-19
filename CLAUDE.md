@@ -23,12 +23,26 @@ latexmk -C main_en.tex
 
 ## Project Structure
 
-- `main_en.tex` - Main English LaTeX document about SDPT3 algorithm
+- `main_en.tex` - Main English LaTeX document (now modularized with \input commands)
+- `section01_notations.tex` - Section 1: Mathematical notations and definitions
+- `section02_problem_definition.tex` - Section 2: Primal and dual problem formulation
+- `section03_interior_point_method.tex` - Section 3: Infeasible primal-dual path-following interior-point method
+- `section04_predictor_corrector.tex` - Section 4: Predictor-corrector method
+- `section05_sparsity_exploitation.tex` - Section 5: Sparsity exploitation techniques
+- `section06_other_computation.tex` - Section 6: Other computational techniques
+- `section07_summary.tex` - Section 7: Algorithm summary
+- `appendix_a.tex` - Appendix A: Guide to equation derivations
 - `references.bib` - Bibliography file with academic references
 - `latexmkrc` - LaTeX build configuration (uses platex/pbibtex for Japanese compatibility)
 - `backup/` - Contains backup versions of documents including Japanese version
 
 ## Key Document Components
+
+The document is now modularized for easier editing and management:
+- The original large `main_en.tex` file has been split into 8 separate section files
+- Each section file contains complete LaTeX content for its respective section
+- All mathematical notation, equations, labels, and cross-references are preserved
+- The main file uses `\input{}` commands to include all section files
 
 The main document includes:
 - Mathematical notation and definitions for semidefinite programming

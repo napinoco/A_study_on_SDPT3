@@ -1,0 +1,72 @@
+\section{Notations}\label{sec:notation}
+
+
+For a positive integer $n$, let $\mathbb{R}^n$ denote the $n$-dimensional real vector space. In this paper, we treat elements $x$ of $\mathbb{R}^n$ as column vectors, with the $i$-th component denoted by $x_i$. The transpose of a vector $x$ is denoted by $x^T$.
+
+For positive integers $m$ and $n$, let $\mathbb{R}^{m \times n}$ denote the space of $m \times n$ real matrices. The $(i,j)$ component of $x \in \mathbb{R}^{m \times n}$ is denoted by $x_{ij}$. Furthermore, the transpose of a matrix $x$ is denoted by $x^T$, and if $x \in \mathbb{R}^{n \times n}$ is invertible, its inverse is denoted by $x^{-1}$, and the transpose of the inverse by $x^{-T}$. The trace of a matrix $x$ is denoted by $\operatorname{trace}(x)$, and the determinant by $\operatorname{det}(x)$. The identity matrix is denoted by $I$. Additionally, we define the diagonal matrix $J$ as follows:
+\[
+    J = \begin{pmatrix}
+         1 & 0 \ldots 0\\
+         \substack{\displaystyle 0\\\displaystyle\vdots\\\displaystyle 0} & -I 
+    \end{pmatrix},
+\]
+where $O$ denotes the zero matrix.
+
+Regarding the notation $\|a\|$, if $a$ is a matrix, it represents the Frobenius norm, and if $a$ is a vector, it represents the L2 norm (Euclidean norm). Specifically,
+\[
+\|a\| = 
+\begin{cases}
+    \sqrt{\sum_{i=1}^m \sum_{j=1}^n a_{ij}^2} & \text{if } a \in \mathbb{R}^{m \times n},\\
+    \sqrt{\sum_{i=1}^n a_i^2} & \text{if } a \in \mathbb{R}^n.
+\end{cases}
+\]
+
+We define several sets as follows:
+\begin{itemize}
+    \item 
+    \textbf{$n$-dimensional non-negative real cone:} \\
+    \[
+      \mathbb{R}^n_+ 
+      = \{\,x \in \mathbb{R}^n \mid x \geq 0 \}.
+    \]
+
+    \item 
+    \textbf{$n$-dimensional second-order cone:} \\
+    \[
+      \mathbb{Q}^n 
+      = \{\, (x_0, \bar{x}^T)^T \in \mathbb{R}^n 
+         \mid x_0 \in \mathbb{R}^1_+, \; \bar{x} \in \mathbb{R}^{n-1}, \; \|\bar{x}\| \le x_0 \}.
+    \]\\
+    Here, we define a non-negative real-valued function $\gamma : \mathbb{Q}^n \to \mathbb{R}^1_+$ on $\mathbb{Q}^n$ as
+    \[
+      \gamma(x) = \sqrt{x^T J\, x}.
+    \]
+
+    \item 
+    \textbf{Space of $n$-dimensional real symmetric matrices:} \\
+    \[
+      \mathbb{S}^n = \{\, x \in \mathbb{R}^{n \times n} \mid x = x^T \}.
+    \]
+
+    \item 
+    \textbf{$n$-dimensional real positive semi-definite cone:} \\
+    \[
+      \mathbb{S}^n_+ 
+      = \{\, x \in \mathbb{S}^n \mid a^T x\, a \ge 0 \;\; \forall a \in \mathbb{R}^n \}.
+    \]
+\end{itemize}
+
+The interior of a set $S$ is defined as
+\[
+  \operatorname{int}(S) 
+  = \{\, x \in S \mid \exists\, \epsilon > 0 \quad \text{s.t.} \quad B(x,\; \epsilon) \subseteq S \},
+\]
+whereas the relative interior is defined as the interior within the affine hull of $S$:
+\[
+\operatorname{relint}(S)
+=\{\,
+x \in S 
+\mid \exists \epsilon>0,\; \bigl(\operatorname{aff}(S)\cap B(x,\epsilon)\bigr)\,\subseteq\,S
+\},
+\]
+where $\operatorname{aff}(S)$ denotes the affine hull of $S$, and $B(x,\epsilon)$ denotes the open ball of radius $\epsilon$ centered at $x$.

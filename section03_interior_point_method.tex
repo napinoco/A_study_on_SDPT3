@@ -1,0 +1,618 @@
+\section{Infeasible Primal-Dual Path-Following Interior-Point Method}
+\label{sec:infeasible_IPM}
+
+In this chapter, we discuss an interior-point method designed to converge to a feasible solution through iterations, even if the initial point is infeasible, within the framework of the primal-dual path-following method. In practical applications, there may be errors in the problem data or the feasible solution may be unknown, making such an "infeasible sequence" version of the algorithm highly significant.
+
+\medskip
+
+\noindent
+For simplicity of notation, we define two linear mappings 
+$\mathcal{A}^p : \mathbb{K}^p \to \mathbb{R}^m$ and 
+$(\mathcal{A}^p)^T : \mathbb{R}^m \to \mathbb{K}^p$ 
+as follows:
+\[
+  \mathcal{A}^p x^p
+  := 
+  \begin{pmatrix}
+      \left\langle a^p_1, x^p \right\rangle_p \\
+      \left\langle a^p_2, x^p \right\rangle_p \\
+      \vdots \\
+      \left\langle a^p_m, x^p \right\rangle_p
+  \end{pmatrix},
+  \qquad
+  (\mathcal{A}^p)^T y
+  :=
+  \sum_{k=1}^m a^p_k y_k.
+\]
+Then, the primal problem $(P)$ and the dual problem $(D)$ can be written as follows:
+\[
+  (P)\;:\;
+  \left\{
+  \begin{aligned}
+      &\min_{x}
+       && \sum_{p \in P} \left( \left\langle c^p, x^p \right\rangle_p - \phi^p(x^p;\, \nu^p) \right) \\
+      &\text{s.t.}
+       && \sum_{p \in P} \mathcal{A}^p x^p = b,\\
+      & && x^p \in \mathbb{K}^p \quad (\forall p \in P),
+  \end{aligned}
+  \right.
+  \quad
+  (D)\;:\;
+  \left\{
+  \begin{aligned}
+      &\max_{y,z}
+       && \sum_{k=1}^m b_k y_k 
+          + \sum_{p \in P} \phi^{p*}(z^p;\, \nu^p) \\
+      &\text{s.t.}
+       && c^p - (\mathcal{A}^p)^T y = z^p \quad (\forall p \in P),\\
+      & && z^p \in (\mathbb{K}^p)^* \quad (\forall p \in P).
+  \end{aligned}
+  \right.
+\]
+Here, we define $P^u := \{\, p \in P \mid \mathbb{K}^p = \mathbb{R}^{n_p} \}\,$\footnote{%
+  The superscript $u$ stands for "unrestricted," meaning $\mathbb{K}^p = \mathbb{R}^{n_p}$.
+}.
+
+\medskip
+
+\noindent
+Consider the following KKT conditions, which are necessary for the optimality of the primal-dual problem:
+\begin{equation}
+    \everymath{\displaystyle}
+    \renewcommand{\arraystretch}{2.5}
+    \left\{
+    \begin{array}{ll}
+        \sum_{p \in P} \mathcal{A}^p x^p - b = 0, & \\[-4pt]
+        (\mathcal{A}^p)^T y + z^p - c^p = 0, & \quad (p \in P),\\[-4pt]
+        x^p \circ z^p - \nu^p e^p = 0, & \quad (p \in P \setminus P^u),\\[-4pt]
+        x^p \in \mathbb{K}^p,\; y \in \mathbb{R}^m,\; z^p \in (\mathbb{K}^p)^*, & \quad (p \in P).
+    \end{array}
+    \right.
+    \label{eq:KKTcond}
+\end{equation}
+Here, the bilinear mapping $x^p \circ z^p$ is defined for each block $p \in P \setminus P^u$ as follows:
+\[
+  x^p \circ z^p = 
+  \begin{cases}
+    \frac{1}{2} \left( x^p (z^p)^T + (z^p)^T x^p \right), 
+      & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\[4pt]
+    \left( (x^p)^T z^p;\; x^p_0 \bar{z}^p + z^p_0 \bar{x}^p \right),
+      & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p},\\[4pt]
+    \operatorname{diag}(x^p) z^p,
+      & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+ %\text{ or }\mathbb{R}^{n_p}.
+  \end{cases}
+\]
+This operation is called the Jordan product on $\mathbb{K}^p$. In the case of $\mathbb{S}^{n_p}_+$, it is usually written as $x^p \circ z^p = \frac{1}{2}(x^p z^p + z^p x^p)$, but in this paper, we extend this operator to non-symmetric matrices and use the notation $x^p \circ z^p = \frac{1}{2} \left( x^p (z^p)^T + z^p (x^p)^T \right)$. Note that the extension of the operator $\circ$ to non-symmetric matrices does not satisfy the definition of Jordan algebra \cite{Faraut1994}, but it allows for unified and simplified notation (especially in equations like \eqref{eq:NewtonKKT}). Furthermore, $e^p$ is the identity element for the operator $\circ$, given by:
+\[
+  e^p = 
+  \begin{cases}
+    I, & \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\[3pt]
+    (1,\,0,\ldots,0)^T, & \mathbb{K}^p = \mathbb{Q}^{n_p},\\[3pt]
+    (1,\,1,\ldots,1)^T, & \mathbb{K}^p = \mathbb{R}^{n_p}_+ %\text{ or }\mathbb{R}^{n_p}.
+  \end{cases}
+\]
+
+\medskip
+
+Now, consider replacing $\nu^p$ ($p \in P$) with a positive constant $\mu > 0$. Then, the KKT conditions \eqref{eq:KKTcond} are known to provide a unique solution $\left( x(\mu),\, y(\mu),\, z(\mu) \right)$ within the feasible region. This solution changes smoothly with the value of $\mu$, forming a central path $T$:
+\[
+  T = \left\{ \left( x(\mu),\, y(\mu),\, z(\mu) \right) \mid \mu > 0 \right\}.
+\]
+In the actual path-following method, the properties of this path are utilized to simultaneously solve both the primal and dual problems.
+
+\medskip
+
+In the following sections, we will detail the main components of this algorithm, including the definition and computation of the search direction, the choice of step size, and convergence criteria.
+
+
+
+\bigskip
+\subsection{Search Directions} \label{sec:direction}
+
+\subsubsection{Framework of the Search Direction}
+
+Here, we assume that a tentative solution $(x,\,y,\,z) \in \operatorname{int}(\mathbb{K}) \times \mathbb{R}^m \times \operatorname{int}(\mathbb{K})$ is given.
+Let $\mathbb{K} := \mathbb{K}^1 \times \cdots \times \mathbb{K}^{p_{\max}}$, and denote $x = (x^1, \ldots, x^{p_{\max}})$ and $z = (z^1, \ldots, z^{p_{\max}})$.
+
+Using the parameter $\sigma \in [0,1)$ and the scaling matrices $G^p$ for each block $p \in P$, the search direction $(\Delta x,\, \Delta y,\, \Delta z)$ is given as the solution to the following equations:
+\begin{equation}
+    \renewcommand{\arraystretch}{2.5}
+    \left\{
+    \begin{array}{rll}
+         \sum_{p \in P} \mathcal{A}^p \Delta x^p & = R_{prim} := b - \sum_{p \in P} \mathcal{A}^p x^p &  \\
+         (\mathcal{A}^p)^T \Delta y + \Delta z^p & = R_{dual}^p := c^p - z^p - (\mathcal{A}^p)^T y & (p \in P) \\
+         \mathcal{E}^p \Delta x^p + \mathcal{F}^p \Delta z^p & = R_{comp}^p := \max\{\sigma \mu, \nu^p\} e^p - (G^p x^p) \circ ((G^p)^{-1} z^p) & (p \in P \setminus P^u)
+    \end{array}
+    \right.
+    \label{eq:NewtonKKT}
+\end{equation}
+where
+\begin{equation}
+  \mu := \frac{\sum_{p \in P \mid_{\nu^p=0}} \left\langle x^p, z^p \right\rangle}
+              {\sum_{p \in P \mid_{\nu^p=0}} n^p}
+  \label{eq:mu}
+\end{equation}
+is defined.
+Moreover, $\mathcal{E}^p : \mathbb{K}^p \to \mathbb{K}^p$ and $\mathcal{F}^p : \mathbb{K}^p \to \mathbb{K}^p$ are linear mappings defined as
+\[
+  \mathcal{E}^p \Delta x^p
+    := (G^p \Delta x^p) \circ ((G^p)^{-1} z^p),
+  \quad
+  \mathcal{F}^p \Delta z^p
+    := (G^p x^p) \circ ((G^p)^{-1} \Delta z^p).
+\]
+
+Equation \eqref{eq:NewtonKKT} can be interpreted as the Newton step to approximately satisfy the primal feasibility, dual feasibility, and complementarity conditions of the KKT conditions \eqref{eq:KKTcond}.
+By introducing the scaling matrices $G^p$ according to the cone structure of each block, the complementarity condition is appropriately transformed and symmetrized.
+The parameter $\sigma$ is used to track the central path $T$, and $\sigma \mu$ serves as the "target duality gap."
+
+The choice of scaling matrices $G^p$ affects the linearization of the complementarity part, impacting numerical stability and efficiency in sparse matrix processing.
+Depending on the application field and problem characteristics, the appropriate search direction should be chosen.
+
+\medskip
+
+
+\subsubsection{AHO Direction}
+
+First, consider the simplest scaling case where $G^p = I$. This is known as the Alizadeh-Haeberly-Overton (AHO) search direction \cite{Alizadeh1998} in the context of semidefinite programming and second-order cone programming. The AHO search direction is numerically stable but has a high computational cost per iteration. For simple cones such as $\mathbb{K}^p = \mathbb{R}^{n_p}_+$ and $\mathbb{K}^p = \mathbb{R}^{n_p}$, it is customary to use $G^p = I$.
+
+\medskip
+
+\subsubsection{HKM Direction}
+
+\noindent
+
+For $\mathbb{K}^p = \mathbb{S}^{n_p}_+$ or $\mathbb{K}^p = \mathbb{Q}^{n_p}$, consider the following scaling matrices $G^p$.
+
+\paragraph{Case 1: \(\mathbb{K}^p = \mathbb{S}^{n_p}_+\).}
+\[
+  G^p := (z^p)^{\tfrac12}.
+\]
+Since $z^p$ is a positive semidefinite matrix, $(z^p)^{1/2}$ is uniquely defined. In this case, $G^p e^p (G^p)^T = z^p$ holds.
+
+\paragraph{Case 2: \(\mathbb{K}^p = \mathbb{Q}^{n_p}\).}
+\[
+  \omega^p := \gamma(z^p), 
+  \quad
+  t^p := \frac{1}{\gamma(z^p)}\, z^p,
+  \quad
+  G^p :=
+  \omega^p
+  \begin{pmatrix}
+    t^p_0 & (\bar{t}^p)^T \\
+    \bar{t}^p & I + \frac{1}{1+t^p_0}\,\bar{t}^p(\bar{t}^p)^T
+  \end{pmatrix}.
+\]
+Here, $\gamma(\cdot)$ is the norm function for the second-order cone (see Chapter 2). In this case, $G^p e^p = z^p$ holds.
+
+\medskip
+
+The search direction obtained by solving equation \eqref{eq:NewtonKKT} with these scaling matrices $G^p$ is called the HKM search direction. The HKM search direction is also known as the HRVW/KSH/M direction (Helmberg--Rendl--Vanderbei--Wolkowicz / Kojima--Shindoh--Hara / Monteiro direction) \cite{Kojima1997,Monteiro1997}. The HKM search direction is known for leveraging the sparsity of the problem and being numerically stable.
+
+\subsubsection{NT Direction}
+
+For $\mathbb{K}^p = \mathbb{S}^{n_p}_+$ or $\mathbb{K}^p = \mathbb{Q}^{n_p}$, consider the following scaling matrices $G^p$.
+
+\paragraph{Case 1: \(\mathbb{K}^p = \mathbb{S}^{n_p}_+\).}
+\[
+  G^p 
+  := 
+    \Bigl( (x^p)^{\frac12} \bigl( (x^p)^{\frac12} z^p (x^p)^{\frac12} \bigr)^{-\frac12} (x^p)^{\frac12} \Bigr)^{-\frac12}.
+\]
+In this case, $(G^p)^{-1} z^p (G^p)^{-T} = G^p x^p (G^p)^T$ holds. In practice, $W^p := (G^p)^2$ is efficiently computed using eigenvalue decomposition or Cholesky decomposition.
+
+\paragraph{Case 2: \(\mathbb{K}^p = \mathbb{Q}^{n_p}\).}
+\begin{equation}
+    \omega^p := \sqrt{\frac{\gamma(z^p)}{\gamma(x^p)}}, 
+    \quad 
+    \xi^p 
+    := \begin{pmatrix} \xi^p_0 \\ \bar{\xi}^p \end{pmatrix} 
+    = \begin{pmatrix}
+        \frac{1}{\omega^p} z^p_0 + \omega^p x^p_0 \\
+        \frac{1}{\omega^p} \bar{z}^p - \omega^p \bar{x}^p \\
+    \end{pmatrix},
+    \quad
+    t^p := \frac{1}{\gamma(\xi^p)}\xi^p
+    \label{eq:scaling_mat_NT_socp_aux}
+\end{equation}
+\begin{equation}
+    G^p := \omega^p \begin{pmatrix}
+        t^p_0 & (\bar{t}^p)^T \\
+        \bar{t}^p & I+\frac{1}{1 + t^p_0} \bar{t}^p(\bar{t}^p)^T
+    \end{pmatrix}
+    \label{eq:scaling_mat_NT_socp}
+\end{equation}
+In this case, $(G^p)^{-1} z^p = G^p x^p$ holds.
+
+\medskip
+
+The search direction obtained by solving equation \eqref{eq:NewtonKKT} with these scaling matrices $G^p$ is called the Nesterov--Todd (NT) search direction \cite{Nesterov1997,todd1998}. The NT search direction is based on the theory of self-concordant barriers and is known for its strong theoretical guarantees of global convergence.
+
+\medskip
+
+In SDPT3, the options \texttt{HKM} and \texttt{NT} can be selected for search directions for $\mathbb{K}^p = \mathbb{S}^{n_p}_+$ and $\mathbb{K}^p = \mathbb{Q}^{n_p}$, but regardless of the option chosen, $G^p = I$ is used for $\mathbb{K}^p = \mathbb{R}^{n_p}_+$ and $\mathbb{K}^p = \mathbb{R}^{n_p}$.
+\medskip
+
+
+
+\subsection{Reduction of the equation}
+In this section, we describe the procedure to \textbf{reduce} the search direction equation \eqref{eq:NewtonKKT} defined in the previous section into a more manageable form. Specifically, we eliminate $\Delta x^p$ and $\Delta z^p$ to obtain an equation in terms of $\Delta y$, resulting in the so-called Schur complement system.
+
+First, by solving the following two equations from \eqref{eq:NewtonKKT} for $\Delta z^p$ and $\Delta x^p$ respectively, we obtain the equation in terms of $\Delta y$:
+\[
+  (\mathcal{A}^p)^T \Delta y + \Delta z^p = R_{dual}^p,
+  \quad
+  \mathcal{E}^p \Delta x^p + \mathcal{F}^p \Delta z^p = R_{comp}^p
+\]
+\[
+    \everymath{\displaystyle}
+    \renewcommand{\arraystretch}{2.5}
+    \left\{
+    \begin{array}{rll}
+    \Delta z^p &= R_{dual}^p - \mathcal{A}^p(\Delta y)  & (p\in P)\\
+    \Delta x^p &= (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(\Delta z^p) \\
+               &= (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(R_{dual}^p - \mathcal{A}^p(\Delta y))  & (p\in P \text{ s.t. } \mathbb{K}^p \neq \mathbb{R})
+   \end{array}
+   \right.
+   \label{eq:sol_x_z}
+\]
+where $\mathcal{H}^p := (\mathcal{E}^p)^{-1}\mathcal{F}^p$. The existence of $(\mathcal{E}^p)^{-1}$ is non-trivial, but it is known to exist if $G^p$ is positive definite \cite{todd1998}. Since all $G^p$ introduced in Section~\ref{sec:direction} are positive definite, $(\mathcal{E}^p)^{-1}$ exists. The specific calculation methods for $(\mathcal{E}^p)^{-1}$ and $\mathcal{H}^p$ will be discussed later.
+
+Substituting \eqref{eq:sol_x_z} into the first equation of \eqref{eq:NewtonKKT}, we obtain:
+\[
+    \left\{
+    \begin{aligned}
+        \sum_{p \in P\setminus P^u} \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T\Delta y + \sum_{p \in P^u} \mathcal{A}^p(\Delta x^p) 
+            &= R_{prim} - \sum_{p \in P\setminus P^u} \mathcal{A}^p((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p) \\
+        (\mathcal{A}^p)^T \Delta y 
+            &= R^p_{dual} \qquad (p\in P^u)
+    \end{aligned}
+    \right.
+    \label{eq:Schur_complement}
+\]
+
+Next, we consider reducing these to matrix representations. Let the matrix $M^p \in \mathbb{S}^{m}$ satisfy
+\[
+    \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T \Delta y= M^p \Delta y,
+\]
+and define:
+\begin{align*}
+    M &= \sum_{p \in P \setminus P^u} M^p \\
+    h &= R_{prim} - \sum_{p \in P \setminus P^u} \mathcal{A}^p\big((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p\big)\\
+    A^p &= \begin{pmatrix}
+        (a^p_1)^T\\
+        (a^p_2)^T\\
+        \vdots\\
+        (a^p_m)^T
+    \end{pmatrix} \in \mathbb{R}^{m\times n_p} \quad (p\in P)\\
+    A^u &= A^p ~ (p\in P^u)\text{ concatenated horizontally}\\
+    R^u_{dual} &= R^p_{dual} ~ (p\in P^u)\text{ concatenated vertically}\\
+    \Delta x^u &= \Delta x^p ~ (p\in P^u)\text{ concatenated vertically}
+\end{align*}
+Then, the equation \eqref{eq:Schur_complement} can be represented in matrix form as:
+\[
+    \underbrace{\left(\begin{array}{cc}
+        M   & A^u \\
+        A^u & O
+    \end{array}\right)}_{\mathcal{M}}
+    \left(\begin{array}{c}
+        \Delta y   \\
+        \Delta x^u 
+    \end{array}\right) 
+    = 
+    \left(\begin{array}{c}
+         h  \\
+         R_{dual}^u 
+    \end{array}
+    \right)
+    \label{eq:Schur_complement_Mat}
+\]
+
+In the following, we describe the specific expressions for $(\mathcal{E}^p)^{-1}R^p_{comp}$, $\mathcal{H}^p R^p_{dual}$, and the matrix $M^p$ for HKM and NT search directions. For both HKM and NT search directions, we have:
+\[
+    (\mathcal{E}^p)^{-1}R^p_{comp} = \max\{\sigma\mu, \nu^p\}(z^p)^{-J} - x^p \qquad (p \in P)
+\]
+where $(z^p)^{-J}$ is the inverse element of $z^p$ with respect to the Jordan product $\circ$:
+\[
+    (z^p)^{-J} = \begin{cases}
+        (z^p)^{-1} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
+        \frac{1}{(\gamma(z^p))^2} J z^p & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
+        (1/z_1, \ldots, 1/z_{n_p})^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+.
+    \end{cases}
+\]
+
+When the search direction option is set to \texttt{HKM}, we have:
+\begin{align}
+    \mathcal{H}^p R^p_{dual} &= \begin{cases}
+        \frac{1}{2}(x^p R^p_{dual} (z^p)^{-1} + (z^p)^{-1} R^p_{dual} x^p) & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+\\
+        - \Big( (x^p)^T J (z^p)^{-J} \Big) J R^p_{dual} + \inprod{(z^p)^{-J}}{R^p_{dual}} x^p + \inprod{R^p_{dual}}{x^p} (z^p)^{-J} & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p}\\
+        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} \Delta z^p & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+    \end{cases} \label{eq:HKM_HRd}\\
+    M^p &= \begin{cases} 
+        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{x^p a^p_\ell (z^p)^{-1}} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
+        -\Big( (x^p)^T J (z^p)^{-1} \Big) A^p J (A^p)^T + (A^p x^p)(A^p (z^p)^{-1})^T + (A^p (z^p)^{-1})(A^p x^p)^T& \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
+        A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+    \end{cases}
+\end{align}
+
+When the search direction option is set to NT, we have:
+\begin{align}
+    \mathcal{H}^p R^p_{dual} &= \begin{cases}
+        W^p R^p_{dual} W^p & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
+        \frac{1}{(\omega^p)^2} \Big(-J R^p_{dual} + 2\inprod{R^p_{dual}}{t^p}t^p\Big) & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p}\\
+        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} R^p_{dual} & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+    \end{cases}\\
+    M^p &= \begin{cases}
+        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{W^p a^p_\ell W^p} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+\\
+        \frac{1}{(\omega^p)^2}\Big(-A^p J (A^p)^T + 2 (A^p t^p)(A^p t^p)^T \Big) & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
+        A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+    \end{cases} \label{eq:NT_M}
+\end{align}
+where $W^p = (G^p)^{-2} = (x^p)^{-\frac{1}{2}}((x^p)^{\frac{1}{2}} z^p (x^p)^{\frac{1}{2}})^{\frac{1}{2}} (x^p)^{-\frac{1}{2}}$, and $\omega^p$, $t^p$ are defined as in \eqref{eq:scaling_mat_NT_socp_aux}.
+
+Although $W^p$ appears to be very complex, it can be calculated using the following procedure \cite{todd1998}:
+\begin{enumerate}
+    \item First, perform the Cholesky decomposition of $z^p$ to obtain the upper triangular matrix $U$, i.e., $z^p=U^TU$.
+    \item Next, perform the eigenvalue decomposition of $U x^p U$ to obtain the orthogonal matrix $V$ and the diagonal matrix $\Lambda$ with eigenvalues on the diagonal, i.e., $U x^p U = V \Lambda V^T$.
+    \item Now, let $S=\Lambda^\frac{1}{4}(U^{-1}V)^T$, then $W^p=S^T S$.
+\end{enumerate}
+
+A brief guide on the derivation of \eqref{eq:HKM_HRd}--\eqref{eq:NT_M} can be found in Appendix~\ref{sec:guide_for_dir_eq}.
+
+\subsection{Solving the reduced equation}
+In many cases, the matrix $\mathcal{M}$ is very ill-conditioned, making direct solution of \eqref{eq:Schur_complement_Mat} numerically unstable. Therefore, iterative refinement methods are recommended. In practice, SDPT3 \cite{toh1999} uses the Symmetric Quasi-Minimal Residual (SQMR) method \cite{Freund1994} with $\mathcal{M}^{-1}$ as the preconditioning matrix to solve \eqref{eq:Schur_complement_Mat}.
+
+In the SQMR method, it is necessary to repeatedly calculate the product of the matrix $\mathcal{M}^{-1}$ and a vector for preconditioning. Two approaches can be considered for efficient and accurate calculation:
+The first approach is to perform LU decomposition of the entire matrix $\mathcal{M}$ in advance. This allows the product of $\mathcal{M}^{-1}$ and a vector to be calculated by forward-backward substitution.
+% (This method is superior in terms of accuracy because it does not explicitly calculate the inverse of the ill-conditioned $\mathcal{M}$.)
+
+If $M$ is positive definite, another approach can be taken. Using the Schur complement $S := (A^u)^T M^{-1} A^u - O$, we can write:
+\[
+\mathcal{M}^{-1}=\begin{pmatrix}
+    M^{-1} + M^{-1} A^u S^{-1} (A^u)^T M^{-1} & -M^{-1} A^u S^{-1} \\
+    -S^{-1} (A^u)^T M^{-1} & S^{-1}
+\end{pmatrix}
+\]
+Thus, we obtain:
+\[
+    \mathcal{M}^{-1}\begin{pmatrix}u \\ v \end{pmatrix} = \begin{pmatrix} \hat{u} - M^{-1} A^u \hat{v} \\ \hat{v} \end{pmatrix}
+\]
+where $\hat{u} = M^{-1} u$ and $\hat{v} = S^{-1}\big((A^u)^T \hat{u} - v \big)$.
+Therefore, if the Cholesky decomposition of $M$ (more efficient than LU decomposition) and the LU decomposition of $S$ are calculated in advance, the calculation of the product of $\mathcal{M}^{-1}$ and a vector reduces to three forward-backward substitutions for $M$ and two forward-backward substitutions for $S$.
+Although the method using Cholesky decomposition is efficient, in practice, due to the presence of dependent constraints and numerical errors, $M$ may not be positive definite, and $S$ may also be very ill-conditioned.
+
+In the implementation of SDPT3, the second method is tried first, and if the Cholesky decomposition of $M$ fails or if $S=LU$ is found to be extremely ill-conditioned (specifically, if the ratio of the maximum to minimum diagonal elements of $U$ is greater than $10^{x}$), the first method of LU decomposition of the entire $\mathcal{M}$ is adopted.
+
+Both methods can be further optimized by exploiting the sparsity of the problem. Details are discussed in Section~\ref{sec:exploit_sparsity_socp_lp}.
+
+
+
+
+\subsection{Step size} \label{sec:step_size}
+In this section, we explain the method for calculating the step sizes $\alpha_P$, $\alpha_D \in [0, 1]$ used to determine the next iteration point 
+\[
+  (x^+,\,y^+,\,z^+) 
+  \;=\; 
+  \bigl(x + \alpha_P\,\Delta x,\;\; y + \alpha_D\,\Delta y,\;\; z + \alpha_D\,\Delta z\bigr).
+\]
+
+The iteration points must satisfy
+\[
+  x + \alpha_P \Delta x \;\in\; \operatorname{int}\bigl(\mathbb{K}\bigr),
+  \quad
+  z + \alpha_D \Delta z \;\in\; \operatorname{relint}\bigl((\mathbb{K})^*\bigr),
+\]
+thus we calculate
+\[
+  \alpha_x  := \sup \bigl\{\,\alpha \ge 0 \mid x + \alpha \,\Delta x \in \mathbb{K}\bigr\},
+  \quad
+  \alpha_z  := \sup \bigl\{\,\alpha \ge 0 \mid z + \alpha \,\Delta z \in (\mathbb{K})^*\bigr\}
+\]
+and use a suitable constant $\gamma\in(0,1)$ (e.g., $\gamma=0.99$) to define
+\[
+  \alpha_P 
+    = \gamma \,\alpha_x, 
+  \quad
+  \alpha_D 
+    = \gamma \,\alpha_z.
+\]
+
+\subsubsection{Computation of $\alpha_x$}
+Below, we show the method for calculating $\alpha_x$.  
+Let \[\alpha^p_x:=\sup\{\alpha \geq 0 \mid x^p + \alpha \Delta x^p \in \mathbb{K}^p\} \quad (p\in P)\]
+then $\alpha_x=\min\{\alpha^p_x\mid p\in P\}$ holds.
+
+\paragraph{Case 1: $\mathbb{K}^p = \mathbb{S}^{n_p}_+$.}
+
+Using the Cholesky decomposition $x^p=LL^T$ of $x^p$,
+\[\alpha^p_x = \sup\{\alpha \geq 0 \mid I + \alpha L^{-1} \Delta x^p (L^T)^{-1} \in \mathbb{K}^p\}\]
+holds, thus if $\lambda_{\max}$ is the largest eigenvalue of $-L^{-1} \Delta x^p (L^T)^{-1}$,
+\[\alpha^p_x = \begin{cases}
+    1/\lambda_{\max} & \text{if} ~ \lambda_{\max} > 0 \\
+    +\infty & \text{otherwise}
+\end{cases}\]
+is obtained.
+$\lambda_{\max}$ can be efficiently calculated with good accuracy using methods such as the Lanczos method \cite{Golub2013}.
+
+\paragraph{Case 2: $\mathbb{K}^p = \mathbb{Q}^{n_p}$.}
+
+Using the following quadratic form
+\begin{align*}
+  f^p(\alpha^p)
+  :&= ( x^p + \alpha^p \Delta x^p )^T J ( x^p + \alpha^p \Delta x^p )\\
+   &=  ( x^p_0 + \alpha \Delta x^p_0 )^2 - \bigl\|( \bar{x}^p + \alpha \Delta \bar{x}^p )\bigr\|^2
+\end{align*}
+we can write
+\begin{align*}
+    \alpha_x^p 
+    &= \sup\{\alpha \geq 0 \mid x^p + \alpha \Delta x^p \in \mathbb{Q}^{n_p}\}\\
+    &= \sup\{\alpha \geq 0 \mid f^p(\alpha) \geq 0, ~x^p_0 + \alpha \Delta x^p_0 \geq 0\}.
+\end{align*}
+
+Consider the positive roots of the quadratic equation $f(\alpha)=0$. % List all positive roots and take the interval up to the maximum $\alpha$.
+Expanding $f^p$,
+\begin{align*}
+    f^p(\alpha) = \alpha^2\underbrace{(\Delta x^p)^T J (\Delta x^p)}_a + 2 \alpha \underbrace{(x^p)^T J (\Delta x^p)}_b + \underbrace{(x^p)^T J x^p}_c
+\end{align*}
+where $d:=b^2-ac$.
+Since $x^p\in \operatorname{int}(\mathbb{Q}^{n_p})$, $c = (x^p_0)^2 - \|\bar{x}^p\|^2 > 0$, the quadratic equation $f^p(\alpha) = 0$ has positive solutions in the following three cases:
+\begin{enumerate}
+    \item When $a<0$, $\alpha=\frac{-b-\sqrt{d}}{a}$ is the only positive solution.
+    \item When $a=0$ and $b<0$, $\alpha=-\frac{c}{2b}$ is the only positive solution.
+    \item When $a>0$, $b<0$, and $d\geq 0$, $\alpha=\frac{-b-\sqrt{d}}{a}$ is the smallest positive solution.
+\end{enumerate}
+These solutions always satisfy $x^p_0+\alpha \Delta x^p_0\geq 0$.
+(\textbf{Proof:} If $\Delta x^p_0 \geq 0$, it is trivial. Consider the case $\Delta x^p_0 < 0$. First, $f^p(0)=c>0$. Also,
+% Note that $f^p(\alpha) = (x^p_0 + \alpha \Delta x^p_0)^2 - \|(x^p + \alpha \Delta x^p)\|^2$,
+$f^p(-\frac{x^p_0}{\Delta x^p_0}) = - \|(x^p -\frac{x^p_0}{\Delta x^p_0} \Delta x^p)\|^2 \leq 0$.
+Thus, the smallest positive solution of $f^p(\alpha) = 0$ exists in the interval $\big(0, \frac{x^p_0}{-\Delta x^p_0}\big]$, and in this interval $x^p_0+\alpha \Delta x^p_0\geq 0$ always holds.)
+
+Therefore,
+\begin{equation*}
+    \alpha^p_x=\begin{cases}
+       \frac{-b - \sqrt{d}}{a} & \text{if } (a < 0) \text{ or } (a > 0 \text{ and } b < 0 \text{ and } d \geq 0)\\
+       -\frac{c}{2b} & \text{if $a=0$} \\
+       \infty & \text{otherwise}
+    \end{cases}
+\end{equation*}
+
+\paragraph{Case 3: $\mathbb{K}^p = \mathbb{R}^{n_p}_+$.}
+In this case,
+\[
+t_i= \begin{cases}
+    x^p_i / (-\Delta x^p_i) & \text{if } \Delta x^p_i < 0 \\
+    +\infty & \text{otherwise}
+\end{cases}
+\]
+then,
+\[
+    \alpha^p_x = \min\{t_i \mid i=1,2,\ldots,n_p\}
+\]
+holds.
+
+\paragraph{Case 4: $\mathbb{K}^p = \mathbb{R}^{n_p}$.}
+In this case, there are no constraints, so $\alpha^p_x=+\infty$ is acceptable.
+
+\medskip
+
+\subsubsection{Computation of $\alpha_z$}
+For $\alpha_z$, we calculate $\alpha^p_z = \sup\{\alpha\in [0, 1] \mid z^p + \alpha\Delta z^p \in (\mathbb{K}^p)^*\}$ for each block, and then $\alpha_z=\min\{\alpha^p_z \mid p \in P\}$.
+Since $\mathbb{K}^p=\mathbb{S}^{n_p}_+,\mathbb{Q}^{n_p},\mathbb{R}^{n_p}_+$ are self-dual (i.e., $\mathbb{K}^p = \bigl(\mathbb{K}^p\bigr)^*$), $\alpha^p_z$ can be calculated in the same way as $\alpha^p_x$.
+For $\mathbb{K}^p=\mathbb{R}^{n_p}$, since $\bigl(\mathbb{K}^p\bigr)^*=\{0\}^{n_p}$, $\Delta z^p = 0$ always holds, so $\alpha^p_z=+\infty$ is acceptable.
+
+\medskip
+
+\subsection{Initial Points}
+\label{sec:initial_points}
+The algorithms described in this paper can start from infeasible initial points, but the choice of initial points greatly affects the convergence speed and numerical stability of the iterations.
+In practice, existing solvers (such as SDPT3) report that numerical calculations tend to become unstable when given initial points with extremely small or large norms \cite{toh1999}.
+It is desirable to provide initial points with the same scale as the solutions of problems $(P),(D)$, and a simple and empirically effective initial point used in SDPT3 is $y = 0$, and for each $p\in P$,
+
+\[
+    x^p = \begin{cases}
+        \zeta^p\, e^p, & \text{if } p \in P \setminus P^u,\\
+        0, & \text{if } p\in P^u,
+    \end{cases}
+    \quad
+    \quad 
+    z^p = \begin{cases}
+        \eta^p\, e^p, & \text{if } p \in P \setminus P^u,\\
+        0, & \text{if } p\in P^u.
+    \end{cases}
+\]
+is used as the initial point\footnote{If it is unknown whether problems $(P)$ and $(D)$ have feasible solutions or if they do not have any interior points, converting to a Homogeneous Self-Dual (HSD) model may be effective.
+For example, in the 3-parameter HSD model proposed by Wright \cite{Wright1997},
+auxiliary variables $(\tau, \kappa, \theta)$ are introduced to construct an extended problem, and applying interior-point methods to this can stabilize numerical calculations even when the feasibility is unknown.
+However, this method may increase the number of iterations when starting from infeasible initial points, so it is often used depending on the scale and characteristics of the problem \cite{toh1999}.}. Here,
+\begin{align*}
+    \zeta^p 
+    &= \max\Bigl\{
+       10,\;\sqrt{n^p},\;\;\theta^p \max_{1 \le k \le m}\bigl\{\frac{1 + |b_k|}{1 + \|a^p_k\|}\bigr\}
+      \Bigr\},
+    \quad
+    \quad
+    \theta^p = \begin{cases}
+        n^p, & \mathbb{K}^p=\mathbb{S}^{n_p}_+,\\
+        \sqrt{n^p}, & \mathbb{K}^p=\mathbb{Q}^{n_p},\\
+        1, & \text{otherwise},
+    \end{cases}
+    \\[6pt]
+    \eta^p 
+    &= \max\Bigl\{
+       10,\;\sqrt{n^p},\;\max\{\|a^p_1\|,\ldots,\|a^p_m\|,\;\|c^p\|\}
+      \Bigr\}.
+\end{align*}
+
+\medskip
+\subsection{Stopping Criteria}
+\label{sec:stopping_criteria}
+
+In this section, we present the stopping criteria for terminating the iterations of the interior-point method.
+SDPT3 terminates iterations when the predefined number of iterations or accuracy goals are met, or when infeasibility or numerical difficulties become apparent.
+
+Specifically, we first define the following quantities to measure the dual gap and infeasibility:
+\[
+  \mathrm{gap}
+  := \sum_{p\in P}
+       \Bigl(\inprod{x^p}{z^p}_p + \bigl(\phi^p(x^p) - \phi^{p*}(z^p)\bigr)\Bigr),
+\]
+\[
+  \mathrm{relgap}
+  := \frac{\mathrm{gap}}
+           {\,1 \;+\;\Bigl|\sum_{p\in P}\inprod{c^p}{x^p}_p\Bigr|
+                 \;+\;|\,b^T y|\,},
+\]
+\[
+  \mathrm{pinfeas}
+  := \frac{\|\,R_{prim}\|}{\,1 + \|b\|\,},
+  \quad
+  \mathrm{dinfeas}
+  := \frac{\sum_{p\in P}\|\,R^p_{dual}\|}
+           {\,1 + \sum_{p\in P}\|\,c^p\|\,}.
+\]
+Refer to equation \eqref{eq:NewtonKKT} for the definitions of $R_{prim}$ and $R_{dual}^p$.
+These represent the residuals of primal infeasibility and dual infeasibility, respectively.
+If $\mathrm{pinfeas} = 0$ and $\mathrm{dinfeas} = 0$,
+\[
+  \sum_{p\in P}\inprod{x^p}{z^p}_p 
+  \;=\;
+  \sum_{p\in P}\inprod{x^p}{c^p - (\mathcal{A}^p)^T y}_p
+  \;=\; \sum_{p\in P}\inprod{x^p}{c^p}_p \;-\; b^T y,
+\]
+holds, indicating that $\mathrm{gap}$ can be used as an indicator of the dual gap.
+
+Under these definitions, the iterations are terminated when any of the following conditions are met:
+
+\begin{enumerate}
+    \item The number of iterations reaches the upper limit (default is 100 iterations).
+    \item 
+      $\displaystyle
+      \max\{\,\mathrm{relgap},\;\mathrm{pinfeas},\;\mathrm{dinfeas}\}
+      < \varepsilon
+      $
+      and the desired accuracy $\varepsilon$ is achieved.
+    \item 
+      $\displaystyle
+        \frac{\,b^T y\,}
+              {\,\sum_{p\in P}\|\,(\mathcal{A}^p)^T y + z^p\|\!}
+      > \kappa
+      $
+      indicating that the primal problem (P) is likely infeasible.
+    \item 
+      $\displaystyle
+      -\,\frac{\inprod{c}{x}}
+              {\bigl\|\sum_{p\in P}\mathcal{A}^p x^p\bigr\|}
+      > \kappa
+      $
+      indicating that the dual problem (D) is likely infeasible.
+    \item Numerical errors occur:
+      \begin{itemize}
+          \item Failure in Cholesky decomposition of $x^p$ or $z^p$.
+          \item Preconditioned iterative solver (such as SQMR) fails to converge.
+          \item $\mathrm{gap}$ diverges, indicating erratic behavior.
+      \end{itemize}
+\end{enumerate}
+
+Furthermore, it is practically important to heuristically terminate iterations when $\mathrm{relgap}$, $\mathrm{pinfeas}$, and $\mathrm{dinfeas}$ take relatively small values and there is little improvement in the last few iterations.
+In SDPT3 \cite{toh1999}, various termination conditions are implemented in \texttt{sqlpcheckconvg.m}, such as terminating when relative errors and update amounts fall below certain thresholds.
+
