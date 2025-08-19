@@ -9,15 +9,15 @@ For positive integers $m$ and $n$, let $\mathbb{R}^{m \times n}$ denote the spac
 The $(i,j)$ component of $x \in \mathbb{R}^{m \times n}$ is denoted by $x_{ij}$.
 Furthermore, the transpose of a matrix $x$ is denoted by $x^T$, and if $x \in \mathbb{R}^{n \times n}$ is invertible, its inverse is denoted by $x^{-1}$, and the transpose of the inverse by $x^{-T}$.
 The trace of a matrix $x$ is denoted by $\operatorname{trace}(x)$, and the determinant by $\operatorname{det}(x)$.
-The identity matrix is denoted by $I$.
+The identity matrix of size $n \times n$ is denoted by $I_n$ or simply $I$ when the dimension is clear from context.
 Additionally, we define the diagonal matrix $J$ as follows:
 \[
     J = \begin{pmatrix}
-         1 & 0 \ldots 0\\
-         \substack{\displaystyle 0\\\displaystyle\vdots\\\displaystyle 0} & -I 
-    \end{pmatrix},
+        1 & 0_{n-1}^T \\
+        0_{n-1} & -I_{n-1}
+    \end{pmatrix} \in \mathbb{R}^{n \times n},
 \]
-where $O$ denotes the zero matrix.
+where $0_{n-1} \in \mathbb{R}^{n-1}$.
 
 Regarding the notation $\|a\|$, if $a$ is a matrix, it represents the Frobenius norm, and if $a$ is a vector, it represents the L2 norm (Euclidean norm).
 Specifically,
@@ -42,10 +42,10 @@ We define several sets as follows:
     \textbf{$n$-dimensional second-order cone:} \\
     \[
       \mathbb{Q}^n 
-      = \{\, (x_0, \bar{x}^T)^T \in \mathbb{R}^n 
-         \mid x_0 \in \mathbb{R}^1_+, \; \bar{x} \in \mathbb{R}^{n-1}, \; \|\bar{x}\| \le x_0 \}.
-    \]\\
-    Here, we define a non-negative real-valued function $\gamma : \mathbb{Q}^n \to \mathbb{R}^1_+$ on $\mathbb{Q}^n$ as
+      = \left\{ \begin{pmatrix} x_0 \\ \bar{x} \end{pmatrix} \in \mathbb{R}^n 
+         \;\middle|\; x_0 \in \mathbb{R}^1_+, \; \bar{x} \in \mathbb{R}^{n-1}, \; \|\bar{x}\| \le x_0 \right\}.
+    \]
+    Here, we define a non-negative real-valued function $\gamma : \mathbb{Q}^n \to \mathbb{R}^1_+$ as
     \[
       \gamma(x) = \sqrt{x^T J\, x}.
     \]
@@ -64,17 +64,24 @@ We define several sets as follows:
     \]
 \end{itemize}
 
+For $x \in \mathbb{R}^n$ and $\epsilon > 0$, the open ball of radius $\epsilon$ centered at $x$ is defined as
+\[
+  B(x, \epsilon) = \{ y \in \mathbb{R}^n \mid \|y - x\| < \epsilon \}.
+\]
+For a set $S \subseteq \mathbb{R}^n$, the affine hull of $S$ is defined as
+\[
+  \operatorname{aff}(S) = \left\{ \sum_{i=1}^k \lambda_i x_i \mid x_i \in S, \lambda_i \in \mathbb{R}, \sum_{i=1}^k \lambda_i = 1, k \in \mathbb{N} \right\}.
+\]
 The interior of a set $S$ is defined as
 \[
   \operatorname{int}(S) 
-  = \{\, x \in S \mid \exists\, \epsilon > 0 \quad \text{s.t.} \quad B(x,\; \epsilon) \subseteq S \},
+  = \{\, x \in S \mid \exists\, \epsilon > 0 \quad \text{s.t.} \quad B(x, \epsilon) \subseteq S \},
 \]
 whereas the relative interior is defined as the interior within the affine hull of $S$:
 \[
 \operatorname{relint}(S)
 =\{\,
 x \in S 
-\mid \exists \epsilon>0,\; \bigl(\operatorname{aff}(S)\cap B(x,\epsilon)\bigr)\,\subseteq\,S
-\},
+\mid \exists\, \epsilon > 0,\; \bigl(\operatorname{aff}(S)\cap B(x,\epsilon)\bigr)\,\subseteq\,S
+\}.
 \]
-where $\operatorname{aff}(S)$ denotes the affine hull of $S$, and $B(x,\epsilon)$ denotes the open ball of radius $\epsilon$ centered at $x$.
