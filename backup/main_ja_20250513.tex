@@ -1,0 +1,1558 @@
+\documentclass{jsarticle}
+\usepackage{graphicx,amsmath,amssymb}
+\usepackage{algorithm,algorithmic}
+\usepackage{appendix}
+\newtheorem{example}{Example}
+\newcommand{\inprod}[2]{\left\langle #1, \, #2 \right\rangle}
+
+\title{A Study on the Algorithm and Implementation of SDPT3}
+\author{Naoki Ito\footnote{Fast Retailing Co. Ltd.\ naoki.b.ito@fastretailing.com}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\begin{abstract}
+This technical report presents a comprehensive study of SDPT3, a widely used open-source MATLAB solver for semidefinite-quadratic-linear programming, which is based on the interior-point method.
+It includes a self-contained and consistent description of the algorithm, with mathematical notation carefully aligned with the implementation. 
+The aim is to offer a clear and structured reference for researchers and developers seeking to understand or build upon the implementation of SDPT3.
+\end{abstract}
+
+\tableofcontents
+% \section{Introduction}
+% 線形計画問題（LP）、二次錐計画問題（SOCP）、半正定値計画問題（SDP）は、
+% 制御理論、機械学習、組合せ最適化など、多様な分野で活用される重要な最適化問題である。
+% 内点法は、これらのクラスに属する凸最適化問題に対して多項式時間計算量を保証する強力なアルゴリズムであり、
+% 特に中規模の問題に対して高精度な解を効率的に求めることができる。
+
+% 実際、SDPA、SeDuMi、SDPT3、MOSEK などの代表的な内点法ソルバーは長年にわたって利用されてきており、
+% 数多くの研究成果や改良が積み重ねられてきた。こうした実績により、これらのソルバーは現在もなお
+% 最適化の現場で重要な役割を担っている。
+
+% 一方で、ユーザーがこうした豊富な研究成果を幅広く活用するには、いくつかの課題がある。
+% たとえば SeDuMi や SDPT3 は、プロプライエタリな MATLAB 環境に依存しているため、
+% 利用できるユーザーが限られてしまう。SDPA は C 言語で実装され、Python インターフェースも
+% 存在するものの、二次錐計画問題（SOCP）を直接扱えないため SDP への変換が必要となり、
+% 計算効率を損ねる可能性がある。さらに、多くの商用ソルバーが提供されてはいるものの、
+% ライセンス料が高額であることから実務や個人利用において大きなハードルとなっている。
+
+% そこで本プロジェクトでは、高性能かつ保守性の高い Python ネイティブの SDP ソルバーを提供し、
+% より多くのユーザーが SDP の恩恵を受けられるようにすることを目的とする。具体的には、
+% \begin{enumerate}
+%     \item \textbf{Python エコシステムとの親和性:}  
+%           NumPy や SciPy などの主要な科学技術計算ライブラリとシームレスに連携する
+%           Python インターフェースを提供する。
+%     \item \textbf{高性能な実装:}  
+%           部分的に Cython を活用し、既存ソルバーに匹敵する性能を目指す。
+%     \item \textbf{メンテナンス性と拡張性の向上:}  
+%           モジュール化された設計や型ヒントの導入、最新のソフトウェア工学プラクティスを採用し、
+%           コードの可読性・保守性・拡張性を高める。
+%     % \item \textbf{オープンソースコミュニティへの貢献:}  
+%     %       開発過程をオープンにし、コミュニティからの貢献を歓迎することで
+%     %       持続可能な開発体制を構築する。
+%     \item \textbf{包括的なドキュメント:}  
+%           チュートリアル、API リファレンス、アルゴリズム解説などを整備し、
+%           ユーザーにとって分かりやすいドキュメントを提供する。
+% \end{enumerate}
+
+% 本レポートでは、とくに SDPT3 のコアアルゴリズムを Python 上で移植・リファクタリングする作業を進めている。
+% SDPT3 をベースとして選択した理由としては、以下の点が挙げられる。
+% \begin{itemize}
+%     \item \textbf{汎用性の高さ:}  
+%           SDP、SOCP、LP に加え、自由変数や対数行列式問題なども含めた幅広い問題クラスを
+%           統一的に扱うことができる。
+%     \item \textbf{優れた性能:}  
+%           MATLAB で実装されていながら、C 言語中心のソルバーに劣らない高い性能をもつ。
+%     \item \textbf{Python への移植の容易性:}  
+%           主要部分が MATLAB によって記述されており、Python への移植が比較的容易である。
+% \end{itemize}
+
+% 本稿では、ソルバーに実装されているアルゴリズム\cite{todd1998}\cite{toh1999}\cite{Toh2012}を
+% できるかぎり自己完結的に説明しつつ、数学的表記を実装と対応づけることで、
+% コードリーディングのための効果的なリファレンスとなることを目指している。
+
+
+\section{Notations}\label{sec:notation}
+
+正の整数 $n$ に対し、$\mathbb{R}^n$ を $n$ 次元実数ベクトル空間とする。本稿では、
+$\mathbb{R}^n$ の元 $x$ をすべて列ベクトルとして扱い、その第 $i$ 成分を $x_i$ と表す。
+また、ベクトル $x$ の転置を $x^T$ とする。
+
+正の整数 $m, n$ に対し、$\mathbb{R}^{m\times n}$ を $m\times n$ 実行列の空間とする。
+$x\in\mathbb{R}^{m\times n}$ の $(i,j)$ 成分を $x_{ij}$ と表記する。
+さらに、行列 $x$ の転置を $x^T$ とし、$x \in \mathbb{R}^{n\times n}$ で可逆な場合はその逆行列を $x^{-1}$、
+逆行列の転置を $x^{-T}$ と表す。行列 $x$ のトレースを $\operatorname{trace}(x)$、行列式を
+$\operatorname{det}(x)$ とする。また、$I$ は単位行列を表す。
+さらに、以下で定義する対角行列 $J$ を用いる：
+\[
+    J = \begin{pmatrix}
+         1 & 0 ~\ldots ~0 \\
+         \substack{\displaystyle 0 \\ \displaystyle \vdots \\ \displaystyle 0} & -I
+    \end{pmatrix},
+\]
+% ここで$O$ は零行列を表す。
+
+$\|\,a\|\,$ という記号については、$a$ が行列の場合はフロベニウスノルムを、
+ベクトルの場合は L2 ノルム（ユークリッドノルム）を表すものとする。具体的には、
+\[
+\|a\| = 
+\begin{cases}
+    \sqrt{\sum_{i=1}^m \sum_{j=1}^n a_{ij}^2} & \text{if } a \in \mathbb{R}^{m\times n},\\
+    \sqrt{\sum_{i=1}^n a_i^2}               & \text{if } a \in \mathbb{R}^n.
+\end{cases}
+\]
+
+以下に示すいくつかの集合を定義する。
+\begin{itemize}
+    \item 
+    \textbf{$n$ 次元非負実数錐:} 
+    $
+      \mathbb{R}^n_+ 
+      = \{\,x \in \mathbb{R}^n \mid x \geq 0 \}.
+    $
+
+    \item 
+    \textbf{$n$ 次元二次錐:}
+    $
+      \mathbb{Q}^n 
+      = \{\, (x_0, \bar{x}^T)^T \in \mathbb{R}^n 
+         \mid x_0 \in \mathbb{R}^1_+, \; \bar{x} \in \mathbb{R}^{n-1}, \; \|\bar{x}\| \le x_0 \}.
+    $\\
+    ここで、$\mathbb{Q}^n$上の非負実数値関数 $\gamma : \mathbb{Q}^n \to \mathbb{R}^1_+$ を、
+    \[
+      \gamma(x) = \sqrt{x^T J\, x}
+    \]
+    と定義する。
+
+    \item 
+    \textbf{$n$ 次実対称行列の空間:}
+    $
+      \mathbb{S}^n = \{\, x \in \mathbb{R}^{n\times n} \mid x = x^T \}.
+    $
+
+    \item 
+    \textbf{$n$ 次実半正定値行列錐:}
+    $
+      \mathbb{S}^n_+ 
+      = \{\, x \in \mathbb{S}^n \mid a^T x\, a \ge 0 \;\; \forall a \in \mathbb{R}^n \}.
+    $
+\end{itemize}
+
+集合 $S$ の内部（interior）を 
+\[
+  \operatorname{int}(S) 
+  = \{\, x \in S \mid \exists\, \epsilon > 0 \quad \text{s.t.} \quad B(x,\; \epsilon) \subseteq S \}
+\]
+と定義する。さらに、相対的内部（relative interior）は、$S$ のアフィン包（affine hull）上での内部として  
+\[
+\operatorname{relint}(S)
+=\{\,
+x \in S 
+\mid \exists \epsilon>0,\; \bigl(\operatorname{aff}(S)\cap B(x,\epsilon)\bigr)\,\subseteq\,S
+\},
+\]
+と定義する。ただし $\operatorname{aff}(S)$ は $S$ のアフィン包、$B(x,\epsilon)$ は半径 $\epsilon$ の開球である。
+
+
+
+
+\section{Problem Definition}
+
+本稿では、以下の主問題 $(P)$ と双対問題 $(D)$ を扱う。
+\begin{equation*}
+    \everymath{\displaystyle}
+    \renewcommand{\arraystretch}{2.0}
+    (P)~
+    \left|
+    \begin{array}{cl}
+         \min_{x} & \displaystyle 
+             \sum_{p \in P} \Bigl(\inprod{c^p}{x^p}_p\Bigr) 
+             \;+\;\sum_{p \in P} \phi^p\bigl(x^p;\,\nu^p\bigr) \\[3pt]
+         \text{s.t.} 
+         & \displaystyle 
+             \sum_{p \in P} \inprod{a^p_{k}}{x^p}_p 
+             \;=\; b_k \quad (k= 1,2,\ldots,m), \\[3pt]
+         & x^p \;\in\; \mathbb{K}^p \quad (p\in P),
+    \end{array}
+    \right.
+    \qquad
+    (D)~
+    \left|
+    \begin{array}{cl}
+         \max_{y,z} & \displaystyle 
+            \sum_{k=1}^m b_k\, y_k 
+            \;+\;\sum_{p \in P} \phi^{p*}\bigl(z^p;\,\nu^p\bigr) \\[3pt]
+         \text{s.t.} 
+         & \displaystyle 
+            c^p \;-\; \sum_{k=1}^m a^p_k\,y_k \;=\; z^p \quad (p\in P), \\[3pt]
+         & z^p \;\in\; (\mathbb{K}^p)^* \quad (p\in P).
+    \end{array}
+    \right.
+\end{equation*}
+
+ここで、以下のパラメータ類はすべて所与とする。
+\begin{itemize}
+    \item 錐のブロック数を表す正の整数 $p_{\max}$ と、添字集合 $P = \{1,2,\ldots,p_{\max}\}$。
+    \item 各ブロックの変数次元を表す正の整数 $n_p$ ($p \in P$) と、制約式の本数を表す正の整数 $m$。
+    \item 錐 $\mathbb{K}^p$ ($p \in P$)：$\mathbb{S}^{n_p}_+$, $\mathbb{Q}^{n_p}$, $\mathbb{R}^{n_p}_+$, $\mathbb{R}^{n_p}$ のいずれか。
+    \item 係数 $c^p$ および $a^p_k$ ($k=1,2,\ldots,m;\, p\in P$)：$\mathbb{K}^p=\mathbb{S}^{n_p}_+$ のときは $\mathbb{S}^{n_p}$ の元、それ以外のときは $\mathbb{R}^{n_p}$ の元。
+    \item 係数ベクトル $b \in \mathbb{R}^m$。
+    \item 非負パラメータ $\nu^p \ge 0$ ($p\in P$)。
+\end{itemize}
+
+$(\mathbb{K}^p)^*$ は錐 $\mathbb{K}^p$ の双対錐\footnote{%
+  $(\mathbb{K}^p)^* = \{\, z^p \mid \inprod{x^p}{z^p}_p \ge 0,\;\forall x^p \in \mathbb{K}^p\}\,$
+}であり、以下のようになる。
+\[
+(\mathbb{K}^p)^* = 
+\begin{cases}
+    \mathbb{S}_{+}^{n_p} & \text{if } \mathbb{K}^{p}=\mathbb{S}_{+}^{n_p},\\
+    \mathbb{Q}^{n_p}     & \text{if } \mathbb{K}^{p}=\mathbb{Q}^{n_p},\\
+    \mathbb{R}_{+}^{n_p} & \text{if } \mathbb{K}^{p}=\mathbb{R}_{+}^{n_p},\\
+    \{0\}                & \text{if } \mathbb{K}^{p}=\mathbb{R}^{n_p}.
+\end{cases}
+\]
+$\inprod{a}{x}_p$ は以下で定義される内積である。
+\[
+    \inprod{a}{x}_p = 
+    \begin{cases}
+        \operatorname{trace}\bigl(a^T x\bigr) 
+          = \displaystyle \sum_{i=1}^{n_p}\sum_{j=1}^{n_p} a_{ij}\, x_{ij},
+          & \text{if } \mathbb{K}^p=\mathbb{S}_{+}^{n_p},\\[6pt]
+        a^T x 
+          = \displaystyle \sum_{i=1}^{n_p} a_{i}\,x_{i},
+          & \text{otherwise}.
+    \end{cases}
+\]
+また、$\phi^p : \mathbb{K}^p \to \mathbb{R}_+$ は以下の障壁関数（barrier function）である。
+\[
+\phi^p\bigl(x^p;\,\nu^p\bigr) =
+    \begin{cases}
+      -\nu^p \log \det(x^p), & \text{if } \mathbb{K}^{p}=\mathbb{S}_{+}^{n_p},\\
+      -\nu^p \log \gamma\bigl(x^p\bigr), & \text{if } \mathbb{K}^{p}=\mathbb{Q}^{n_p},\\
+      -\sum_{i=1}^{n_p} \nu^p \log x^p_i, 
+         & \text{if } \mathbb{K}^{p}=\mathbb{R}_{+}^{n_p},\\
+      0, & \text{if } \mathbb{K}^{p}=\mathbb{R}^{n_p}.
+    \end{cases}
+\]
+ここで、 Section~\ref{sec:notation} で導入したように、 $\gamma(x)=\sqrt{(x^p)^T J x^p}$ である。
+$\phi^{p*} : \mathbb{K}^p \to \mathbb{R}_+$ は $\phi^p$ の共役関数\footnote{%
+  $\phi^{p*}(z^p;\,\nu^p)=\max \{\,\inprod{z^p}{x^p}_p - \phi^p(x^p;\,\nu^p)\mid x^p\in \mathbb{K}^p\}$
+}であり、以下によって与えられる。
+\[
+\phi^{p*}\bigl(z^p;\,\nu^p\bigr) =
+    \begin{cases}
+      \nu^p \log \det(z^p) + n_p\,\nu^p \bigl(1-\log \nu^p\bigr),
+         & \text{if } \mathbb{K}^{p}=\mathbb{S}_{+}^{n_p},\\[4pt]
+      \nu^p \log \gamma(z^p) + \nu^p\bigl(1-\log \nu^p\bigr),
+         & \text{if } \mathbb{K}^{p}=\mathbb{Q}^{n_p},\\[4pt]
+      \displaystyle 
+        \sum_{i=1}^{n_p} \Bigl(\nu^p \log z^p_i + \nu^p\bigl(1-\log \nu^p\bigr)\Bigr),
+         & \text{if } \mathbb{K}^{p}=\mathbb{R}_{+}^{n_p},\\[3pt]
+      0, & \text{if } \mathbb{K}^{p}=\mathbb{R}^{n_p}.
+    \end{cases}
+\]
+なお、$\nu^p = 0$ $(\forall p \in P)$ のとき、$(P)$ と $(D)$ は錐線形計画問題の等式標準形となる。
+$\nu^p > 0$ の場合を考慮することで、対数行列式問題などを含む広範な問題クラスを扱えるようになる。
+
+Examples go here.
+
+\section{Infeasible Primal-Dual Path-Following Interior-Point Method}
+\label{sec:infeasible_IPM}
+
+本章では、主双対パス追跡法 (primal-dual path-following method) の枠組みにおいて、
+初期点が実行不可能 (infeasible) であっても反復を通じて実行可能解へと収束するよう設計された内点法について解説する。
+実際の応用では、問題のデータに誤差があったり、実行可能解が不明なことがあるため、このような「非実行可能点列」バージョンのアルゴリズムは大きな意義をもつ。
+
+\medskip
+
+\noindent
+表記の簡略化のために、2 つの線形写像
+$\mathcal{A}^p : \mathbb{K}^p \to \mathbb{R}^m$ と
+$(\mathcal{A}^p)^T : \mathbb{R}^m \to \mathbb{K}^p$
+を以下のように定義する:  
+\[
+  \mathcal{A}^p x^p
+  := 
+  \begin{pmatrix}
+      \inprod{a^p_1}{x^p}_p \\
+      \inprod{a^p_2}{x^p}_p \\
+      \vdots \\
+      \inprod{a^p_m}{x^p}_p
+  \end{pmatrix},
+  \qquad
+  (\mathcal{A}^p)^T y
+  :=
+  \sum_{k=1}^m a^p_k\,y_k.
+\]
+このとき、主問題 $(P)$ と双対問題 $(D)$ を以下のように書くことができる:
+\[
+  (P)\;:\;
+  \left\{
+  \begin{aligned}
+      &\min_{x}
+       && \sum_{p \in P} \bigl(\,\inprod{c^p}{x^p}_p \;-\; \phi^p\bigl(x^p;\,\nu^p\bigr)\bigr) \\
+      &\text{s.t.}
+       && \sum_{p \in P}\mathcal{A}^p x^p = b,\\
+      & && x^p \in \mathbb{K}^p \quad (\forall p \in P),
+  \end{aligned}
+  \right.
+  \quad
+  (D)\;:\;
+  \left\{
+  \begin{aligned}
+      &\max_{y,z}
+       && \sum_{k=1}^m b_k\,y_k 
+          \;+\; \sum_{p \in P} \phi^{p*}\bigl(z^p;\,\nu^p\bigr) \\
+      &\text{s.t.}
+       && c^p - (\mathcal{A}^p)^T y = z^p \quad (\forall p \in P),\\
+      & && z^p \in (\mathbb{K}^p)^* \quad (\forall p \in P).
+  \end{aligned}
+  \right.
+\]
+ここで、$P^u := \{\,p \in P \mid \mathbb{K}^p = \mathbb{R}^{n_p}\}\,$ と定義する\footnote{%
+  上付き添字 $u$ は “unrestricted” に由来し、$\mathbb{K}^p=\mathbb{R}^{n_p}$ を意味する。
+}。
+
+\medskip
+
+\noindent
+主双対問題の最適性の必要条件となる以下の KKT 条件 を考える:
+\begin{equation}
+    \everymath{\displaystyle}
+    \renewcommand{\arraystretch}{2.5}
+    \left\{
+    \begin{array}{ll}
+        \sum_{p \in P} \mathcal{A}^p x^p - b = 0, & \\[-4pt]
+        (\mathcal{A}^p)^T y + z^p - c^p = 0, & \quad (p \in P),\\[-4pt]
+        x^p \circ z^p \;-\; \nu^p\,e^p = 0, & \quad (p \in P \setminus P^u),\\[-4pt]
+        x^p \in \mathbb{K}^p,\; y \in \mathbb{R}^m,\; z^p \in (\mathbb{K}^p)^*, & \quad (p \in P).
+    \end{array}
+    \right.
+    \label{eq:KKTcond}
+\end{equation}
+ここで双線形写像 $x^p \circ z^p$ を、各ブロック $p\in P \setminus P^u$ に対して次のように定義する:
+\[
+  x^p \circ z^p = 
+  \begin{cases}
+    \tfrac12 \bigl(x^p (z^p)^T + (z^p)^T x^p\bigr), 
+      & \text{if } \mathbb{K}^p=\mathbb{S}^{n_p}_+,\\[4pt]
+    \bigl((x^p)^T z^p;\; x^p_0\,\bar{z}^p + z^p_0\,\bar{x}^p\bigr),
+      & \text{if } \mathbb{K}^p=\mathbb{Q}^{n_p},\\[4pt]
+    \operatorname{diag}(x^p)\,z^p,
+      & \text{if } \mathbb{K}^p=\mathbb{R}^{n_p}_+ %\text{ または }\mathbb{R}^{n_p}.
+  \end{cases}
+\]
+この演算は、$\mathbb{K}^p$ 上では \textbf{Jordan product} と呼ばれる演算になっている。
+$\mathbb{S}^{n_p}_+$ の場合は通常 $x^p \circ z^p = \tfrac12(x^p z^p + z^p x^p)$ と書かれるが、
+本稿ではこの演算子を非対称行列へも拡張して
+$x^p \circ z^p = \tfrac12 \bigl(x^p (z^p)^T + z^p (x^p)^T\bigr)$
+という表記を用いていることに注意されたい。
+演算子 $\circ$ の非対称行列への拡張は Jordan 代数 \cite{Faraut1994} の定義を満たさないが、表記を統一し簡略化することができる
+(特に後に出てくる式\eqref{eq:NewtonKKT}など)。 
+さらに、$e^p$ は演算子 $\circ$ に対する単位元であり、
+\[
+  e^p = 
+  \begin{cases}
+    I, & \mathbb{K}^p=\mathbb{S}^{n_p}_+,\\[3pt]
+    (1,\,0,\ldots,0)^T, & \mathbb{K}^p=\mathbb{Q}^{n_p},\\[3pt]
+    (1,\,1,\ldots,1)^T, & \mathbb{K}^p=\mathbb{R}^{n_p}_+ %\text{ または }\mathbb{R}^{n_p}.
+  \end{cases}
+\]
+と表される。
+
+\medskip
+
+いま、$\nu^p$ ($p \in P$) をある正の定数 $\mu>0$ に置き換えることを考える。
+すると KKT 条件 \eqref{eq:KKTcond} は、実行可能領域の内部でただ 1 つの解 $\bigl(x(\mu),\,y(\mu),\,z(\mu)\bigr)$ を与えることが知られている。
+この解が $\mu$ の値に応じて滑らかに変化し、
+\[
+  T \;=\; \bigl\{\,\bigl(x(\mu),\,y(\mu),\,z(\mu)\bigr) \;\mid\; \mu>0 \bigr\}
+\]
+という中心パス (central path) を形成する。
+実際のパス追跡法では、このパスの性質を活用して主問題と双対問題の両方を同時に解へ導く。
+
+\medskip
+
+次節以降では、探索方向 (search direction) の定義・計算方法やステップ幅の選び方、収束判定など、
+本アルゴリズムを構成する主要な要素を詳述する。
+
+
+\bigskip
+\subsection{Search Directions} \label{sec:direction}
+
+\subsubsection{Framework of the Search Direction}
+
+ここでは、暫定解 $(x,\,y,\,z)\in \operatorname{int}(\mathbb{K})\times \mathbb{R}^m \times \operatorname{int}(\mathbb{K})$ を与えられているとする。
+ただし $\mathbb{K} := \mathbb{K}^1\times\cdots\times \mathbb{K}^{p_{\max}}$ であり、
+$x=(x^1,\ldots,x^{p_{\max}}),\;z=(z^1,\ldots,z^{p_{\max}})$ とおく。
+
+パラメーターとして、 $\sigma \in [0,1)$ と、各ブロック$p\in P$のスケーリング行列 $G^p$ を用い、探索方向 $(\Delta x,\;\Delta y,\;\Delta z)$ を次の方程式の解として与える:
+\begin{equation}
+    \everymath{\displaystyle}
+    \renewcommand{\arraystretch}{2.5}
+    \left\{
+    \begin{array}{rll}
+         \sum_{p\in P} \mathcal{A}^p \Delta x^p & = R_{prim} := b - \sum_{p\in P} \mathcal{A}^p x^p &  \\
+         (\mathcal{A}^p)^T \Delta y + \Delta z^p & = R_{dual}^p := c^p - z^p -  (\mathcal{A}^p)^T y 
+ & (p\in P) \\
+         \mathcal{E}^p \Delta x^p + \mathcal{F}^p \Delta z^p & = R_{comp}^p := \max\{\sigma\mu, \nu^p\} e^p - (G^p x^p)\circ \bigl((G^p)^{-1} z^p\bigr) & (p\in P\setminus P^u)
+    \end{array}
+    \right.
+    \label{eq:NewtonKKT}
+\end{equation}
+ただし、
+\begin{equation}
+  \mu := \frac{\sum_{p\in P \mid_{\nu^p=0}}\inprod{x^p}{z^p}}
+              {\sum_{p\in P \mid_{\nu^p=0}} n^p}
+  \label{eq:mu}
+\end{equation}
+とおいた。
+また、$\mathcal{E}^p : \mathbb{K}^p \to \mathbb{K}^p$ と $\mathcal{F}^p : \mathbb{K}^p \to \mathbb{K}^p$ は
+それぞれ
+\[
+  \mathcal{E}^p\,\Delta x^p
+    := (G^p \,\Delta x^p)\,\circ\bigl((G^p)^{-1} z^p\bigr),
+  \quad
+  \mathcal{F}^p\,\Delta z^p
+    := (G^p x^p)\,\circ\bigl((G^p)^{-1}\,\Delta z^p\bigr)
+\]
+で定義する線形写像である。 %$\mathcal{H}^p := (\mathcal{E}^p)^{-1}\,\mathcal{F}^p$ とおく。
+
+式 \eqref{eq:NewtonKKT} は、KKT条件 \eqref{eq:KKTcond} において、主実行可能性・双対実行可能性・相補性条件を近似的に満たすためのNewton ステップを示していると解釈できる。
+% しかし、相補性に錐制約（Jordan product）を伴うため、単純な Newton 法では\textbf{過剰決定 (over-determined)}になってしまうケースがある。
+ただし、各ブロックの錐構造に合わせてスケーリング行列 $G^p$ を導入し、相補性条件に対するNewton方程式を適切に変形・対称化するという工夫が行われている。
+$\sigma$ は中心パス $T$ を追跡するためのパラメーターであり、$\sigma\mu$ が「目標とする双対ギャップ」のような役割を果たす。
+
+スケーリング行列 $G^p$ の置き方によって相補性部分の線形化が異なり、数値的安定性や疎行列処理などの効率性にも影響がある。
+ユーザーの応用分野や問題の特性に応じて、どの探索方向を使うかを選ぶ必要がある。
+
+\medskip
+
+\subsubsection{AHO Direction}
+
+まず最も単純なスケーリングとして、$G^p=I$ を用いるケースを考える。
+これは、半正定値計画問題や2次錐計画問題の文脈において、 Alizadeh-Haeberly-Overton (AHO) 探索方向 \cite{Alizadeh1998} と呼ばれている。
+AHO 探索方向は、数値的な安定性は高いが、1反復あたりの計算量が大きいとされている。
+$\mathbb{K}^p = \mathbb{R}^{n_p}_+, \mathbb{R}^{n_p}$ などの単純な錐に対しては $G^p=I$ を使うのが通例である。
+
+\medskip
+
+\subsubsection{HKM Direction}
+
+\noindent
+
+$\mathbb{K}^p = \mathbb{S}^{n_p}_+$ または $\mathbb{K}^p = \mathbb{Q}^{n_p}$ の場合において、以下のスケーリング行列 $G^p$ を考える。
+
+\paragraph{Case 1: \(\mathbb{K}^p = \mathbb{S}^{n_p}_+\).}
+\[
+  G^p := (z^p)^{\tfrac12}.
+\]
+% （$z^p$ が半正定値行列なので、$(z^p)^{1/2}$ は一意に定義できる。）
+このとき、$G^p e^p (G^p)^T = z^p$ が成り立つ。
+
+\paragraph{Case 2: \(\mathbb{K}^p = \mathbb{Q}^{n_p}\).}
+\[
+  \omega^p := \gamma(z^p), 
+  \quad
+  t^p := \frac{1}{\gamma(z^p)}\, z^p,
+  \quad
+  G^p :=
+  \omega^p
+  \begin{pmatrix}
+    t^p_0 & (\bar{t}^p)^T \\
+    \bar{t}^p & I + \frac{1}{1+t^p_0}\,\bar{t}^p(\bar{t}^p)^T
+  \end{pmatrix}.
+\]
+% ここで $\gamma(\cdot)$ は二次錐に対するノルム関数である（第2章参照）。
+このとき $G^p e^p = z^p$ が成り立つ。
+
+\medskip
+
+これらのスケーリング行列 $G^p$ のもとで、式 \eqref{eq:NewtonKKT} を解いて得られる探索方向を HKM 探索方向 と呼ぶ。
+HKM 探索方向は、実際には HRVW/KSH/M 方向 (Helmberg--Rendl--Vanderbei--Wolkowicz / Kojima--Shindoh--Hara / Monteiro direction) 
+とも呼ばれ、複数の独立した研究で提案・整備されたものである \cite{Kojima1997,Monteiro1997}。
+HKM 探索方向は問題のスパース性を活かしやすく、数値的にも安定しているとされている。
+
+
+\subsubsection{NT Direction}
+
+$\mathbb{K}^p = \mathbb{S}^{n_p}_+$ または $\mathbb{K}^p = \mathbb{Q}^{n_p}$ の場合において、以下のスケーリング行列 $G^p$ を考える。
+
+\paragraph{Case 1: \(\mathbb{K}^p = \mathbb{S}^{n_p}_+\).}
+\[
+  G^p 
+  := 
+    \Bigl( (x^p)^{\frac12} \bigl( (x^p)^{\frac12} z^p (x^p)^{\frac12} \bigr)^{-\frac12} (x^p)^{\frac12} \Bigr)^{-\frac12}.
+\]
+このとき、 $(G^p)^{-1} z^p (G^p)^{-T} = G^p x^p (G^p)^T$ が成り立つ。
+% 実際の実装では、$W^p := (G^p)^2$ を固有値分解や Cholesky 分解を使って効率的に求める仕組みが提案されている
+
+\paragraph{Case 2: \(\mathbb{K}^p = \mathbb{Q}^{n_p}\).}
+\begin{equation}
+    \omega^p := \sqrt{\frac{\gamma(z^p)}{\gamma(x^p)}}, 
+    \quad 
+    \xi^p 
+    := \begin{pmatrix} \xi^p_0 \\ \bar{\xi}^p \end{pmatrix} 
+    = \begin{pmatrix}
+        \frac{1}{\omega^p} z^p_0 + \omega^p x^p_0 \\
+        \frac{1}{\omega^p} \bar{z}^p - \omega^p \bar{x}^p \\
+    \end{pmatrix},
+    \quad
+    t^p := \frac{1}{\gamma(\xi^p)}\xi^p
+    \label{eq:scaling_mat_NT_socp_aux}
+\end{equation}
+\begin{equation}
+    G^p := \omega^p \begin{pmatrix}
+        t^p_0 & (\bar{t}^p)^T \\
+        \bar{t}^p & I+\frac{1}{1 + t^p_0} \bar{t}^p(\bar{t}^p)^T
+    \end{pmatrix}
+    \label{eq:scaling_mat_NT_socp}
+\end{equation}
+このとき $(G^p)^{-1} z^p = G^p x^p$ が成り立つ。
+
+\medskip
+
+これらのスケーリング行列 $G^p$ のもとで、式 \eqref{eq:NewtonKKT} を解いて得られる探索方向を Nesterov--Todd (NT) 探索方向 \cite{Nesterov1997,todd1998} と呼ぶ。
+NT 探索方向は、自己整合障壁 (self-concordant barrier) 理論に基づいて提案された方向であり、大域的収束性に優れた理論的保証があることが特徴とされる。
+
+\medskip
+
+SDPT3では $\mathbb{K}^p = \mathbb{S}^{n_p}_+, \mathbb{Q}^{n_p}$ に対する探索方向のオプションとして \texttt{HKM} と \texttt{NT} が選択できるが、いずれのオプションを選択しても $\mathbb{K}^p = \mathbb{R}^{n_p}_+, \mathbb{R}^{n_p}$ に対しては $G^p=I$ が用いられる。
+% HKM探索方向や NT探索方向は半正定値錐や二次錐に対してしばしば用いられる
+
+\medskip
+
+\subsection{Reduction of the equation}
+本節では、前節で定義した探索方向 \eqref{eq:NewtonKKT} をさらに扱いやすい形へと
+\textbf{縮約 (reduction)} する手順について述べる。すなわち、
+$\Delta x^p$, $\Delta z^p$ を消去して $\Delta y$ に関する方程式へ帰着させ、
+いわゆる Schur complement 系を得る。
+
+まず、方程式 \eqref{eq:NewtonKKT} における
+\[
+  (\mathcal{A}^p)^T \Delta y \;+\; \Delta z^p
+    \;=\; R_{dual}^p,
+  \quad
+  \mathcal{E}^p \Delta x^p \;+\; \mathcal{F}^p \Delta z^p
+    \;=\; R_{comp}^p
+\]
+の2本を、それぞれ $\Delta z^p$ と $\Delta x^p$ について解くことで、以下の $\Delta y$ に関する方程式を得る:
+\begin{equation}
+    \everymath{\displaystyle}
+    \renewcommand{\arraystretch}{2.5}
+    \left\{
+    \begin{array}{rll}
+    \Delta z^p &= R_{dual}^p - \mathcal{A}^p(\Delta y)  & (p\in P)\\
+    \Delta x^p &= (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(\Delta z^p) \\
+               &= (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(R_{dual}^p - \mathcal{A}^p(\Delta y))  & (p\in P \text{ s.t. } \mathbb{K}^p \neq \mathbb{R})
+   \end{array}
+   \right.
+   \label{eq:sol_x_z}
+\end{equation}
+ただし $\mathcal{H}^p:=(\mathcal{E}^p)^{-1}\mathcal{F}^p$ である。
+$(\mathcal{E}^p)^{-1}$の存在は非自明だが、$G^p$が正定値であれば存在することが知られている \cite{todd1998}。
+また、Section~\ref{sec:direction} で紹介された $G^p$ はすべて正定値であるから、 $(\mathcal{E}^p)^{-1}$ は存在する。
+$(\mathcal{E}^p)^{-1}$および$\mathcal{H}^p$の具体的な計算方法については後に触れる。
+
+式 \eqref{eq:sol_x_z} を、方程式 \eqref{eq:NewtonKKT} の第一式へ代入すれば、
+\begin{equation}
+    \left\{
+    \begin{aligned}
+        \sum_{p \in P\setminus P^u} \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T\Delta y + \sum_{p \in P^u} \mathcal{A}^p(\Delta x^p) 
+            &= R_{prim} - \sum_{p \in P\setminus P^u} \mathcal{A}^p((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p) \\
+        (\mathcal{A}^p)^T \Delta y 
+            &= R^p_{dual} \qquad (p\in P^u)
+    \end{aligned}
+    \right.
+    \label{eq:Schur_complement}
+\end{equation}
+を得る。
+
+いま、これらを行列表現に帰着させることを考える。
+行列 $M^p\in\mathbb{S}^{m}$ を
+\begin{equation*}
+    \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T \Delta y= M^p \Delta y,
+\end{equation*}
+を満たすものとし、
+\begin{align*}
+    M &= \sum_{p \in P \setminus P^u} M^p \\ %\qquad \text{where $M^p$ satisfies } \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T \Delta y= M^p \Delta y\\
+    h &= R_{prim} - \sum_{p \in P \setminus P^u} \mathcal{A}^p\big((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p\big)\\
+    A^p &= \begin{pmatrix}
+        (a^p_1)^T\\
+        (a^p_2)^T\\
+        \vdots\\
+        (a^p_m)^T
+    \end{pmatrix} \in \mathbb{R}^{m\times n_p} \quad (p\in P)\\
+    A^u &= A^p ~ (p\in P^u)\text{を水平方向に連結した行列}\\
+    R^u_{dual} &= R^p_{dual} ~ (p\in P^u)\text{を垂直方向に連結したベクトル}\\
+    \Delta x^u &= \Delta x^p ~ (p\in P^u)\text{を垂直方向に連結したベクトル}
+\end{align*}
+とおけば、方程式 \eqref{eq:Schur_complement} は以下のように行列表現をすることができる:
+\begin{equation}
+    \underbrace{\left(\begin{array}{cc}
+        M   & A^u \\
+        A^u & O
+    \end{array}\right)}_{\mathcal{M}}
+    \left(\begin{array}{c}
+        \Delta y   \\
+        \Delta x^u 
+    \end{array}\right) 
+    = 
+    \left(\begin{array}{c}
+         h  \\
+         R_{dual}^u 
+    \end{array}
+    \right)
+    \label{eq:Schur_complement_Mat}
+\end{equation}
+
+
+以下では、HKM探索方向 と NT探索方向における、$(\mathcal{E}^p)^{-1}R^p_{comp}$, $\mathcal{H}^p R^p_{dual}$、および、行列 $M^p$ の具体的な式展開を述べる。
+まず、HKM, NT のいずれの探索方向においても、
+\begin{align*}
+    (\mathcal{E}^p)^{-1}R^p_{comp} &= \max\{\sigma\mu, \nu^p\}(z^p)^{-J} - x^p \qquad (p \in P)
+\end{align*}
+となる。ただし $(z^p)^{-J}$ は、ジョルダン積 $\circ$ に関する $z^p$ の逆元:
+\begin{equation*}
+    (z^p)^{-J} = \begin{cases}
+        (z^p)^{-1} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
+        \frac{1}{(\gamma(z^p))^2} J z^p & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
+        (1/z_1, \ldots, 1/z_{n_p})^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+.
+    \end{cases}
+\end{equation*}
+また、探索方向オプションを HKM に設定した場合、
+\begin{align}
+    \mathcal{H}^p R^p_{dual} &= \begin{cases}
+        \frac{1}{2}(x^p R^p_{dual} (z^p)^{-1} + (z^p)^{-1} R^p_{dual} x^p) & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+\\
+        - \Big( (x^p)^T J (z^p)^{-J} \Big) J R^p_{dual} + \inprod{(z^p)^{-J}}{R^p_{dual}} x^p + \inprod{R^p_{dual}}{x^p} (z^p)^{-J} & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p}\\
+        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} \Delta z^p & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+    \end{cases} \label{eq:HKM_HRd}\\
+    M^p &= \begin{cases} 
+        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{x^p a^p_\ell (z^p)^{-1}} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
+        -\Big( (x^p)^T J (z^p)^{-1} \Big) A^p J (A^p)^T + (A^p x^p)(A^p (z^p)^{-1})^T + (A^p (z^p)^{-1})(A^p x^p)^T& \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
+        A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+    \end{cases} \label{eq:HKM_M}
+\end{align}
+となり、探索方向オプションを NT に設定した場合は、
+\begin{align}
+    \mathcal{H}^p R^p_{dual} &= \begin{cases}
+        W^p R^p_{dual} W^p & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
+        \frac{1}{(\omega^p)^2} \Big(-J R^p_{dual} + 2\inprod{R^p_{dual}}{t^p}t^p\Big) & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p}\\
+        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} R^p_{dual} & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+    \end{cases} \label{eq:NT_HRd}\\
+    M^p &= \begin{cases}
+        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{W^p a^p_\ell W^p} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+\\
+        \frac{1}{(\omega^p)^2}\Big(-A^p J (A^p)^T + 2 (A^p t^p)(A^p t^p)^T \Big) & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
+        A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+    \end{cases} \label{eq:NT_M}
+\end{align}
+となる。
+ただし $W^p = (G^p)^{-2} = (x^p)^{-\frac{1}{2}}((x^p)^{\frac{1}{2}} z^p (x^p)^{\frac{1}{2}})^{\frac{1}{2}} (x^p)^{-\frac{1}{2}}$ であり、 $\omega^p$, $t^p$ は式 \eqref{eq:scaling_mat_NT_socp_aux} の定義に従う。
+
+$W^p$は見かけ上非常に複雑だが、以下の手順で計算することができる\cite{todd1998}。
+\begin{enumerate}
+    \item まず、$z^p$のcholesky分解を行い上三角行列$U$を得る、すなわち、$z^p=U^TU$。
+    \item 次に$U x^p U$の固有値分解を行い、正規直交行列$V$と固有値を対角成分に持つ対角行列$\Lambda$を得る、すなわち$U x^p U = V \Lambda V^T$。
+    \item いま、$S=\Lambda^\frac{1}{4}(U^{-1}V)^T$とおけば、実は$W^p=S^T S$である。
+\end{enumerate}
+
+式 \eqref{eq:HKM_HRd}--\eqref{eq:NT_M} の導出方法に関する簡単なガイドは \ref{sec:guide_for_dir_eq} を参照のこと。
+
+
+
+\subsection{Solving the reduced equation}
+多くの場合、行列$\mathcal{M}$は非常に悪条件であるため、式 \eqref{eq:Schur_complement_Mat} の直接法による解は数値的に不安定となりやすい。
+そのため反復改良法 (iterative refinement) を用いることが推奨される。
+実際、SDPT3 \cite{toh1999} では、 $\mathcal{M}^{-1}$ を前処理行列とした Symmetric Quasi-Minimal Residual (SQMR) 法 \cite{Freund1994} を用いて \eqref{eq:Schur_complement_Mat} を解いている。
+
+SQMR法では、前処理のために行列 $\mathcal{M}^{-1}$ とベクトルの積を繰り返し計算する必要があるが、これを効率的かつ精度良く計算するために以下2つのアプローチが考えられる。
+1つめは、あらかじめ行列 $\mathcal{M}$ 全体をLU分解しておく方法である。これにより、行列 $\mathcal{M}^{-1}$ とベクトルの積は、前進--後退代入により計算ができる。
+% (条件数の悪い$\mathcal{M}$の逆行列を陽に計算しなくて良いので、精度面でもこの方法は優れている。)
+% 2つめの方法として、$\mathcal{A}^p(\mathcal{A}^p)^T$ が正則(直感的にはすべての制約が独立)であるならば $M$ は正定値となるという性質を利用すれば、行列 $\mathcal{M}^{-1}$ とベクトルの積の計算を更に効率化することができる。
+
+$M$ が正定値であるならば、以下のもう1つのアプローチを取ることができる。
+$M$ の Schur補行列 $S:=(A^u)^T M^{-1} A^u - O$ を用いると、
+\[
+\mathcal{M}^{-1}=\begin{pmatrix}
+    M^{-1} + M^{-1} A^u S^{-1} (A^u)^T M^{-1} & -M^{-1} A^u S^{-1} \\
+    -S^{-1} (A^u)^T M^{-1} & S^{-1}
+\end{pmatrix}
+\]
+と書けるため、以下を得る:
+\begin{gather*}
+    \mathcal{M}^{-1}\begin{pmatrix}u \\ v \end{pmatrix} = \begin{pmatrix} \hat{u} - M^{-1} A^u \hat{v} \\ \hat{v} \end{pmatrix}
+\end{gather*}
+ただし $\hat{u} = M^{-1} u$ および $\hat{v} = S^{-1}\big((A^u)^T \hat{u} - v \big)$ とおいた。
+したがって、あらかじめ $M$ の Cholesky分解 (LU分解よりも効率的) と $S$ のLU分解を計算しておけば、行列 $\mathcal{M}^{-1}$ とベクトルの積の計算は、$M$ に関する前進--後退代入を3回行い、 $S$ に関する前進--後退代入を2回行うことに帰着される。
+Cholesky分解を用いる方法は効率的ではあるものの、実用上は従属な制約の存在や数値誤差などの影響により、 $M$ が正定値にならなかったり $S$ も非常に悪条件になりやすい。
+
+SDPT3の実装では、2つ目の方法を最初に試し、 $M$ のCholesky分解に失敗するか、 $S=LU$ とLU分解した結果として $S$ が極度に悪条件であることがわかった場合 (より具体的には$U$の対角成分の最大値と最小値の比が $10^{x}$ 以上である場合)は、1つ目の $\mathcal{M}$ 全体のLU分解を取る方法を採用している。
+
+いずれの手法も問題の疎性を活用することで更に効率化を図ることができる場合がある。詳しくは Section~\ref{sec:exploit_sparsity_socp_lp} で述べる。
+
+
+\subsection{Step size} \label{sec:step_size}
+ここでは、探索方向 $(\Delta x,\Delta y,\Delta z)$ を求めた後、次の反復点 
+\[
+  (x^+,\,y^+,\,z^+) 
+  \;=\; 
+  \bigl(x + \alpha_P\,\Delta x,\;\; y + \alpha_D\,\Delta y,\;\; z + \alpha_D\,\Delta z\bigr).
+\]
+を決定する際に用いる ステップサイズ $\alpha_P$, $\alpha_D \in [0, 1]$ の計算方法を説明する。
+
+反復点はそれぞれ
+\[
+  x + \alpha_P \Delta x \;\in\; \operatorname{int}\bigl(\mathbb{K}\bigr),
+  \quad
+  z + \alpha_D \Delta z \;\in\; \operatorname{relint}\bigl((\mathbb{K})^*\bigr),
+\]
+を満たす必要があるため、
+\[
+  \alpha_x  := \sup \bigl\{\,\alpha \ge 0 \mid x + \alpha \,\Delta x \in \mathbb{K}\bigr\},
+  \quad
+  \alpha_z  := \sup \bigl\{\,\alpha \ge 0 \mid z + \alpha \,\Delta z \in (\mathbb{K})^*\bigr\}
+\]
+を計算し、適当な定数 $\gamma\in(0,1)$（たとえば $\gamma=0.99$）を用いて
+\[
+  \alpha_P 
+    = \gamma \,\alpha_x, 
+  \quad
+  \alpha_D 
+    = \gamma \,\alpha_z
+\]
+と定める方法がしばしば用いられる。
+
+\subsubsection{Computation of $\alpha_x$}
+以下では、$\alpha_x$ を求める方法を示す。  
+\[\alpha^p_x:=\sup\{\alpha \geq 0 \mid x^p + \alpha \Delta x^p \in \mathbb{K}^p\} \quad (p\in P)\]
+とおくと、 $\alpha_x=\min\{\alpha^p_x\mid p\in P\}$ が成り立つことに注意する。
+
+
+\paragraph{Case 1: $\mathbb{K}^p = \mathbb{S}^{n_p}_+$.}
+
+$x^p$ の Cholesky分解$x^p=LL^T$を用いると、
+\[\alpha^p_x = \sup\{\alpha \geq 0 \mid I + \alpha L^{-1} \Delta x^p (L^T)^{-1} \in \mathbb{K}^p\}\]
+が成り立つから、 $-L^{-1} \Delta x^p (L^T)^{-1}$の最大固有値を$\lambda_{\max}$ とおけば、
+\[\alpha^p_x = \begin{cases}
+    1/\lambda_{\max} & \text{if} ~ \lambda_{\max} > 0 \\
+    +\infty & \text{otherwise}
+\end{cases}\]
+となる。
+$\lambda_{\max}$ は Lanczos法 \cite{Golub2013} などを用いて、効率的に精度の良い上界を計算することができる。
+
+\paragraph{Case 2: $\mathbb{K}^p = \mathbb{Q}^{n_p}$.}
+
+以下の二次形式
+\begin{align*}
+  f^p(\alpha^p)
+  :&= ( x^p + \alpha^p \Delta x^p )^T J ( x^p + \alpha^p \Delta x^p )\\
+   &=  ( x^p_0 + \alpha \Delta x^p_0 )^2 - \bigl\|( \bar{x}^p + \alpha \Delta \bar{x}^p )\bigr\|^2
+\end{align*}
+を用いると、
+\begin{align*}
+    \alpha_x^p 
+    &= \sup\{\alpha \geq 0 \mid x^p + \alpha \Delta x^p \in \mathbb{Q}^{n_p}\}\\
+    &= \sup\{\alpha \geq 0 \mid f^p(\alpha) \geq 0, ~x^p_0 + \alpha \Delta x^p_0 \geq 0\}
+\end{align*}
+と書ける。
+
+2次方程式 $f(\alpha)=0$ の正の根について考える。 %をすべて列挙し、その中で最大の $\alpha$ をとるまでの区間をとることを考える。
+$f^p$を展開すると、
+\begin{align*}
+    f^p(\alpha) = \alpha^2\underbrace{(\Delta x^p)^T J (\Delta x^p)}_a + 2 \alpha \underbrace{(x^p)^T J (\Delta x^p)}_b + \underbrace{(x^p)^T J x^p}_c
+\end{align*}
+である。$d:=b^2-ac$ とおく。
+$x^p\in \operatorname{int}(\mathbb{Q}^{n_p})$ より $c = (x^p_0)^2 - \|\bar{x}^p\|^2 > 0$ であることに注意すれば、2次方程式 $f^p(\alpha) = 0$ が $\alpha$ について正の解を持つのは以下の3通りのみである。
+\begin{enumerate}
+    \item $a<0$のとき、$\alpha=\frac{-b-\sqrt{d}}{a}$は唯一の正の解
+    \item $a=0$かつ$b<0$のとき、$\alpha=-\frac{c}{2b}$は唯一の正の解
+    \item $a>0$かつ$b<0$かつ$d\geq 0$のとき、$\alpha=\frac{-b-\sqrt{d}}{a}$は最小の正の解
+\end{enumerate}
+実はこれらの解は常に$x^p_0+\alpha \Delta x^p_0\geq 0$を満たす。
+(\textbf{Proof:} $\Delta x^p_0 \geq 0$のときは自明。$\Delta x^p_0 < 0$の場合を考える。まず、$f^p(0)=c>0$である。また、
+%$f^p(\alpha) = (x^p_0 + \alpha \Delta x^p_0)^2 - \|(x^p + \alpha \Delta x^p)\|^2$であることに注意すれば、
+$f^p(-\frac{x^p_0}{\Delta x^p_0}) = - \|(x^p -\frac{x^p_0}{\Delta x^p_0} \Delta x^p)\|^2 \leq 0$である。
+したがって、$f^p(\alpha) = 0$ の最小の正の解は区間 $\big(0, \frac{x^p_0}{-\Delta x^p_0}\big]$ に存在するが、この区間上では常に $x^p_0+\alpha \Delta x^p_0\geq 0$ である。)
+
+よって、
+% \begin{center}
+% \begin{tabular}{c|c||c}
+%     $a$ & $b$ & $(\gamma(x^p+\alpha \Delta x^p))^2 = 0$\\ \hline
+%     $+$ & $+$ & 解なし or 負の解のみ \\
+%     $+$ & $0$ & 解なし ($a>0, c>0 \Rightarrow b \neq 0$が成り立つため起こり得ない) \\
+%     $+$ & $-$ & 解なし or 正の解のみ \\
+%     $0$ & $+$ & 負の解のみ \\
+%     $0$ & $0$ & 解なし \\
+%     $0$ & $-$ & 正の解のみ \\
+%     $-$ & $ $ & $b$によらず正と負の解を持つ
+% \end{tabular}
+% \end{center}
+% となるので、
+\begin{equation*}
+    \alpha^p_x=\begin{cases}
+       \frac{-b - \sqrt{d}}{a} & \text{if } (a < 0) \text{ or } (a > 0 \text{ and } b < 0 \text{ and } d \geq 0)\\
+       -\frac{c}{2b} & \text{if $a=0$} \\
+       \infty & \text{otherwise}
+    \end{cases}
+\end{equation*}
+
+\paragraph{Case 3: $\mathbb{K}^p = \mathbb{R}^{n_p}_+$.}
+この場合は、
+\[
+t_i= \begin{cases}
+    x^p_i / (-\Delta x^p_i) & \text{if } \Delta x^p_i < 0 \\
+    +\infty & \text{otherwise}
+\end{cases}
+\]
+とおけば、
+\[
+    \alpha^p_x = \min\{t_i \mid i=1,2,\ldots,n_p\}
+\]
+である。
+
+\paragraph{Case 4: $\mathbb{K}^p = \mathbb{R}^{n_p}$.}
+この場合は制約がないため $\alpha^p_x=+\infty$ としてよい。
+
+\medskip
+
+\subsubsection{Computation of $\alpha_z$}
+$\alpha_z$ についても、$\alpha^p_z = \sup\{\alpha\in [0, 1] \mid z^p + \alpha\Delta z^p \in (\mathbb{K}^p)^*\}$ を各ブロックで求め、$\alpha_z=\min\{\alpha^p_z \mid p \in P\}$ とすればよい。
+$\mathbb{K}^p=\mathbb{S}^{n_p}_+,\mathbb{Q}^{n_p},\mathbb{R}^{n_p}_+$ の場合、$\mathbb{K}^p$ は自己双対 (つまり$\mathbb{K}^p = \bigl(\mathbb{K}^p\bigr)^*$) だから、$\alpha^p_z$ は $\alpha^p_x$ と全く同様にして計算することができる。
+$\mathbb{K}^p=\mathbb{R}^{n_p}$ の場合は、$\bigl(\mathbb{K}^p\bigr)^*=\{0\}^{n_p}$ だから、常に $\Delta z^p = 0$ となるため、$\alpha^p_z=+\infty$ としてよい。
+
+\medskip
+
+
+\subsection{Initial Points}
+\label{sec:initial_points}
+% ここまで述べてきたアルゴリズムは、実行不可能な初期解からでも開始することができる。
+% しかし、これらのアルゴリズムの性能は、初期点の選択によって大きく左右される。
+% 少なくとも (P)(D) の最適解と同程度のオーダーをもつ初期解を与えることが望ましいとされている。
+% 実務上は最適解のスケールが事前に分からないことも多いが、シンプルかつ経験的にうまく機能する初期解として、SDPT3では各 $p\in P$ について以下の初期解を用いている。
+
+本稿で述べたアルゴリズムは非実行可能な初期点からでも開始できるが、初期解の選び方によって反復の収束速度や数値安定性が大きく左右される。
+実際、既存のソルバー（SDPT3 など）でも、変数のノルムが極端に小さい・大きい初期解を与えると、数値計算が不安定になりがちであると報告されている \cite{toh1999}。
+経験上は、問題$(P),(D)$の解とスケールが同じ初期解を与えることが望ましいとされており、シンプルかつ経験的にうまく機能する初期解として、SDPT3では $y = 0$ 、および、各 $p\in P$ に対して
+
+\[
+    x^p = \begin{cases}
+        \zeta^p\, e^p, & \text{if } p \in P \setminus P^u,\\
+        0, & \text{if } p\in P^u,
+    \end{cases}
+    \quad
+    \quad 
+    z^p = \begin{cases}
+        \eta^p\, e^p, & \text{if } p \in P \setminus P^u,\\
+        0, & \text{if } p\in P^u.
+    \end{cases}
+\]
+を初期解として用いている\footnote{問題 $(P)$, $(D)$ が実行可能解を持つかどうか不明な場合や、
+内部をまったく持たない場合には、Homogeneous Self-Dual (HSD) モデルへの変換が有効なケースがある。
+たとえば、Wright \cite{Wright1997} が提案する 3パラメータ HSD model では、
+$(\tau, \kappa, \theta)$ を補助変数として拡張問題を構成し、そこに対して内点法を適用すると
+実行可能性が分からない問題に対しても数値計算が安定することがある。
+ただし、この方法は非実行可能な初期解から開始すると、反復回数がやや増えるという報告もあるため、
+実際には問題の規模や特徴に応じて使い分けることが多い \cite{toh1999}。}。ただし、
+\begin{align*}
+    \zeta^p 
+    &= \max\Bigl\{
+       10,\;\sqrt{n^p},\;\;\theta^p \max_{1 \le k \le m}\bigl\{\frac{1 + |b_k|}{1 + \|a^p_k\|}\bigr\}
+      \Bigr\},
+    \quad
+    \quad
+    \theta^p = \begin{cases}
+        n^p, & \mathbb{K}^p=\mathbb{S}^{n_p}_+,\\
+        \sqrt{n^p}, & \mathbb{K}^p=\mathbb{Q}^{n_p},\\
+        1, & \text{otherwise},
+    \end{cases}
+    \\[6pt]
+    \eta^p 
+    &= \max\Bigl\{
+       10,\;\sqrt{n^p},\;\max\{\|a^p_1\|,\ldots,\|a^p_m\|,\;\|c^p\|\}
+      \Bigr\}.
+\end{align*}
+
+
+
+\medskip
+\subsection{Stopping Criteria}
+\label{sec:stopping_criteria}
+
+本節では、内点法の反復を終了する際の 停止判定基準 (stopping criteria) を示す。
+SDPT3では、既定の反復回数や精度目標を満たすか、あるいは実行不可能性や数値的困難が明確になった場合に反復を打ち切っている。
+
+具体的には、まず、双対ギャップと実行不可能性を測る指標として次のような量を定義する。
+\[
+  \mathrm{gap}
+  := \sum_{p\in P}
+       \Bigl(\inprod{x^p}{z^p}_p + \bigl(\phi^p(x^p) - \phi^{p*}(z^p)\bigr)\Bigr),
+\]
+\[
+  \mathrm{relgap}
+  := \frac{\mathrm{gap}}
+           {\,1 \;+\;\Bigl|\sum_{p\in P}\inprod{c^p}{x^p}_p\Bigr|
+                 \;+\;|\,b^T y|\,},
+\]
+\[
+  \mathrm{pinfeas}
+  := \frac{\|\,R_{prim}\|}{\,1 + \|b\|\,},
+  \quad
+  \mathrm{dinfeas}
+  := \frac{\sum_{p\in P}\|\,R^p_{dual}\|}
+           {\,1 + \sum_{p\in P}\|\,c^p\|\,}.
+\]
+$R_{prim}$ と $R_{dual}^p$ の定義は、式 \eqref{eq:NewtonKKT} を参照されたい。
+これらはそれぞれ主実行不可能性と双対実行不可能性を表す残差となっている。
+もし $\mathrm{pinfeas} = 0$ かつ $\mathrm{dinfeas} = 0$ ならば、
+\[
+  \sum_{p\in P}\inprod{x^p}{z^p}_p 
+  \;=\;
+  \sum_{p\in P}\inprod{x^p}{c^p - (\mathcal{A}^p)^T y}_p
+  \;=\; \sum_{p\in P}\inprod{x^p}{c^p}_p \;-\; b^T y,
+\]
+が成り立つことにも注意されたい。このことから $\mathrm{gap}$ は双対ギャップを表す指標として用いることができる。
+
+これらの指標の定義のもとで、以下のいずれかの条件が成り立った時点で反復を終了する。
+
+\begin{enumerate}
+    \item 反復回数が上限値 (デフォルトは100回) に到達した場合。
+    \item 
+      $\displaystyle
+      \max\{\,\mathrm{relgap},\;\mathrm{pinfeas},\;\mathrm{dinfeas}\}
+      < \varepsilon
+      $
+      となり、所望の精度 $\varepsilon$ に到達した場合。
+    \item 
+      $\displaystyle
+        \frac{\,b^T y\,}
+              {\,\sum_{p\in P}\|\,(\mathcal{A}^p)^T y + z^p\|\!}
+      > \kappa
+      $
+      となり、主問題 (P) が実行不可能だと思われる場合。
+    \item 
+      $\displaystyle
+      -\,\frac{\inprod{c}{x}}
+              {\bigl\|\sum_{p\in P}\mathcal{A}^p x^p\bigr\|}
+      > \kappa
+      $
+      となり、双対問題 (D) が実行不可能だと思われる場合。
+    \item 数値計算上のエラーが発生した場合:
+      \begin{itemize}
+          \item $x^p$ や $z^p$ の Cholesky 分解に失敗する。
+          \item 前処理付き反復解法 (SQMR法など) が収束しない場合。
+          \item $\mathrm{gap}$ が発散してしまうなど、破綻した挙動がみられる場合。
+      \end{itemize}
+\end{enumerate}
+
+さらに、$\mathrm{relgap}$, $\mathrm{pinfeas}$, $\mathrm{dinfeas}$ がある程度小さい値を取っており、かつ、直近数回の反復でほとんど改善が見られない場合、ヒューリスティックに反復を打ち切ることも実用上は重要である。
+SDPT3 \cite{toh1999} では \texttt{sqlpcheckconvg.m} において、
+相対誤差や更新量が一定の閾値を下回るときに終了させるなど、様々な終了条件が実装されている。
+
+
+\section{Predictor-Corrector Method}
+本章では予測子・修正子法\footnote{予測子・修正子という名称は常微分方程式に対する数値計算法に由来する。}を導入する。
+この方法は実際に問題を非常に効率よく解くことができる方法として多くのソフトウェアに採用されている。
+Mehrotraによって提案されたオリジナルの方法\cite{Mehrotra1992}は多少複雑であるので、ここではToh et al. \cite{toh1999}のものを紹介する。
+これは実際に広く使われているアルゴリズム (例えば\cite{Wright1997}) とは若干プロセスが異なるが、得られる結果は等価である。 
+
+
+予測子・修正子法では、探索方向$(\Delta x, \Delta y, \Delta z)$を2段階に分けて計算する。
+直感的には、第1段階(予測ステップ)で双対ギャップを小さくする探索方向$(\delta x, \delta y, \delta z)$を計算し、
+その情報を用いて中心パス上の目標点を定めた上で、
+第2段階(修正ステップ)で中心パスへ引き戻すような探索方向$(\Delta x, \Delta y, \Delta z)$を計算する。
+
+\paragraph{予測ステップ} 一時的に$\sigma=0$とおく。すなわち、
+\[R^p_{\mathrm{comp}}=\nu^p \, e^p - (G^p x^p) \circ ((G^p)^{-1} z^p)\] 
+の場合を考える。
+このときの方程式\eqref{eq:NewtonKKT}の解を $(\delta x, \delta y, \delta z)$ と置く。
+% $\nu^p=0$であれば、これはいわゆるアフィンスケーリング方向と呼ばれるものになっている。
+この予測方向$(\delta x, \delta y, \delta z)$を用いて、Section~\ref{sec:step_size}の方法でステップ幅を計算し、$\alpha_P, \alpha_D$とおく。(これは実際には変数を更新せず、$\alpha_P, \alpha_D$を一時的に把握するだけである。)
+この予測方向とステップ幅により推定される双対ギャップ$\hat{\mu}$を評価し、実際に用いる$\sigma$の値を決定する。
+具体的には、パラメーター $\psi \ge 1$ のもとで、
+\[
+   \sigma=\min\left\{1, \frac{\inprod{x + \alpha_P \delta x}{z + \alpha_D \delta z}}{\inprod{x}{z}}\right\}^\psi
+\]
+のように定める。経験的には $\psi=2,3,4$ などを採用するのが良いと言われており、SDPT3では所与のパラメーター $\hat{\psi}=3$ を用いて
+\[
+\psi = \begin{cases}
+    \max\{\hat{\psi}, 3 \min(\alpha_P, \alpha_D)^2\} & \text{if} ~ \mu > 10^{-6} \\
+    \max\{1, \min\{\hat{\psi}, 3 \min(\alpha_P, \alpha_D)^2\}\} & \text{otherwise}
+\end{cases}
+\]
+と設定している。ただし $\mu$ は式\eqref{eq:mu}の定義に従う。
+
+\paragraph{修正ステップ} 次に、再設定した $\sigma$ を用いる。さらに、式 \eqref{eq:NewtonKKT} の $R^p_{comp}$ を、
+\[R^{p, corr}_{comp}=R^p_{comp}-(G^p \delta x^p)\circ((G^p)^{-1} \delta z^p)\]
+で置き換えたものを解き、最終的な探索方向 $(\Delta x, \Delta y, \Delta z)$ を得る。
+この探索方向に対して、Section~\ref{sec:step_size}の方法でステップ幅を計算し、$\beta_P, \beta_D$ とおく。
+
+\paragraph{解の更新} 次の反復点を$(x^+, y^+, z^+) = (x, y, z) + (\beta_P \Delta x, \beta_D \Delta y, \beta_D \Delta z)$ とする。
+\\
+
+
+
+予測ステップと修正ステップの間で解くべき方程式において、値が変化するのは $R^p_{\mathrm{comp}}$ だけである。
+すなわち、実際に解くことになる方程式 \eqref{eq:Schur_complement_Mat} においては、右辺ベクトルに含まれる $h$ だけが変化することになる。
+よって、予測ステップで計算した 係数行列 $\mathcal{M}$ 、および、そのLU分解やCholesky分解の結果は修正ステップでも再利用できる。
+また、$h$の値についても、予測ステップで使うものを $h_{pred}$ 、修正ステップで使うものを $h_{corr}$ とおくと、
+\[h_{corr}=h_{pred} + \sum_{p\in P\setminus P^u} \mathcal{A}^p (\mathcal{E}^p)^{-1} \big((G^p \delta x^p) \circ ((G^p)^{-1} \delta z^p) \big)\] 
+と書けるから、予測ステップの計算結果($h_{pred}$)を再利用することができる。
+したがって、予測子・修正子法を導入することによって2回連続で方程式を解く手間が増えるものの、計算コストの増加は比較的限定的である。
+
+
+\medskip
+\section{Sparsity Exploitation Technique} \label{sec:exploit_sparsity}
+\subsection{Semidefinite cone} \label{sec:exploit_sparsity_sdp}
+ここまで述べてきたアルゴリズムの計算コストにおいて支配的となるのは、$\mathbb{K}^p=\mathbb{S}^{n_p}_+$ の場合の $M^p$ の計算である。
+ナイーブに計算すると、2回の行列積と1回の行列の内積を $O(m^2)$ 回繰り返す必要があり、
+これを $a^p_k$ のスパース性を活用して効率化することは実用上きわめて重要である。
+ここでは Fujisawa et al.\cite{Fujisawa1997} によって提案されたアイディアを若干修正したものを紹介する。
+
+\medskip
+
+HKM direction においては
+\[
+  M^p_{\sigma(i)\sigma(j)}
+  = \inprod{\,a^p_{\sigma(i)}}{\,x^p\,a^p_{\sigma(j)}\,(z^p)^{-1}}
+\]
+となる。このとき、$x^p\,a^p_{\sigma(j)}\,(z^p)^{-1}$ のすべての要素を計算する必要はなく、
+$a^p_{\sigma(i)}$ の非ゼロ要素に対応する成分のみ計算すればよいことに着目する。
+また、$M^p$ が対称行列であることから、上三角成分のみ計算すればよいことにも留意する。
+
+\medskip
+
+$a^p_k$ の非ゼロ要素数を $f_k$ とおき、
+添字 $1,\ldots,m$ の permutation $\sigma$ を、$f_k$ が昇順になるように取る。
+いま、ある固定した $j$ について、集合
+\[
+  I
+  := \bigl\{(\alpha,\beta)\mid (a^p_{\sigma(i)})_{\alpha\beta}\neq 0
+         \text{ for some } i=1,\ldots,j \bigr\}
+\]
+を定義する。
+このとき、$x^p\,a^p_{\sigma(j)}\,(z^p)^{-1}$ を以下の F1--F3 のいずれかの手法で計算することを考え、その計算のために必要な積の回数に着目する。
+
+\begin{enumerate}
+\item[F1:] まず $F=a_{\sigma(j)}\,(z^p)^{-1}$ を計算する（$n\,f_{\sigma(j)}$ 回の積が必要）。
+           次に $G=x^p\,F$ を計算する（$n^3$ 回の積が必要）。
+           したがって合計で $n\,f_{\sigma(j)} + n^3$ 回の積を要する。
+\item[F2:] $F=a_{\sigma(j)}\,(z^p)^{-1}$ を計算する（$n\,f_{\sigma(j)}$ 回の積が必要）。次に
+  \[
+    G_{\alpha\beta}=
+    \begin{cases}
+     \sum_{\gamma=1}^m (x^p)_{\alpha\gamma}\,F_{\gamma\beta}, & \text{if } (\alpha,\beta)\in I,\\
+     0, & \text{otherwise},
+    \end{cases}
+  \]
+  を計算する（$n\,|I|$ 回の積が必要）。  
+  合計で $n\,f_{\sigma(j)} + n\,|I|\kappa$ 回の積が必要。
+\item[F3:] 行列 $G$ の各要素を
+  \[
+    G_{\alpha\beta}=
+    \begin{cases}
+      \sum_{\gamma}\sum_{\delta}
+        (x^p)_{\alpha\gamma}\,(a^p_{\sigma(j)})_{\gamma\delta}\,(z^p)^{-1}_{\delta\beta},
+       & \text{if } (\alpha,\beta) \in I,\\
+      0, & \text{otherwise},
+    \end{cases}
+  \]
+  のように二重和で直接計算する。合計で $2f_{\sigma(j)}|I|$ 回の積が必要。
+\end{enumerate}
+
+\noindent
+F1 はナイーブで無駄が多いが、高度に最適化された Basic Linear Algebra Subroutines (BLAS) の行列積ルーチンを活用できる利点がある。
+F2, F3 は飛び飛びの $(\alpha,\beta) \in I$ について演算するため、F1 と比べてメモリアクセスなどのオーバーヘッドが大きいが、
+$|I| \ll n^2$ である場合は F2 が優位であり、$f_{\sigma(j)} \ll n$ である場合は F3 が優位となる。
+
+% このオーバーヘッドを表す係数 $\kappa \ge 1$ を用いて\footnote{%
+%   現在の実装では $\kappa=1$ として実測の計算時間にフィットさせている。
+% }、
+% 計算時間の推定値を
+% \begin{itemize}
+%    \item[F1:] $n\,f_{\sigma(j)} + n^3$
+%    \item[F2:] $n\,f_{\sigma(j)} + n\,|I|\,\kappa$
+%    \item[F3:] $2\,f_{\sigma(j)}\,|I|\,\kappa$
+% \end{itemize}
+% のように求め、その値が最小となる計算ルーチンを選ぶと良い。
+SDPT3では...
+
+\medskip
+
+ここで示した手法は HKM探索方向 について記述しているが、NT探索方向でも同様の手法を用いることができる。
+
+
+\subsection{Second-order and linear cones} \label{sec:exploit_sparsity_socp_lp}
+Section~\ref{sec:direction} で述べた方法で方程式 \eqref{eq:Schur_complement_Mat} を解くとき、
+行列 $\mathcal{M}$ および $M$ が疎であれば、SQMR法の内部で行う行列ベクトル積を高速化できるほか、
+CHOLMOD や UMFPACK, SparseLUのような、疎行列に対して高度に最適化されたCholesky 分解・LU 分解ルーチンを用いることができる。
+
+実用上の大規模な問題では多くの場合$M$はスパースな正定値行列 $M_{\mathrm{sparse}}$ の low-rank perturbation となっている場合が多い。なぜならばほとんどの $a^p_k$ が疎で、わずかな $a^p_k$ が密であることがしばしば見られるためである。
+ここでは、そのようなケースで活用できる \textbf{sparsity exploitation technique} を紹介する。
+
+
+いま、任意の$p\in P\setminus P^u$に対して、十分に小さい正の整数 $n^p_+(\ll m)$ と
+$M^p_{\mathrm{sparse}} \in \mathbb{S}^m_+$, $U^p \in \mathbb{R}^{m\times n^p_+}$, $D^p\in \mathbb{S}^{n^p_+}$ が存在して、
+\begin{equation}
+  M^p = M^p_{\mathrm{sparse}} + U^p\, D^p\, (U^p)^T
+  \label{eq:low_rank_perturbation}
+\end{equation}
+と書くことができると仮定する。
+$M_{\mathrm{sparse}} := \sum_{p\in P\setminus P^u} M^p_{\mathrm{sparse}}$ とおき、
+$U := [U^p \text{を水平に並べた行列}]$, 
+$D:=[D^p\text{をブロック対角に並べた行列}]$ とおくと、
+以下の線形方程式
+\begin{equation}
+  \begin{pmatrix}
+    M_{\mathrm{sparse}} & A^u & U \\
+    (A^u)^T & O & O \\
+    U^T & O & -D^{-1}
+  \end{pmatrix}
+  \begin{pmatrix}
+    \Delta y \\
+    \Delta x^u \\
+    \lambda
+  \end{pmatrix}
+  =
+  \begin{pmatrix}
+    h \\
+    R^u_{dual} \\
+    0
+  \end{pmatrix}
+  \label{eq:Schur_complement_Mat_aug}
+\end{equation}
+の解は $\lambda = D\,U^T\,\Delta y$ を満たすことから、方程式 \eqref{eq:Schur_complement_Mat_aug} と \eqref{eq:Schur_complement_Mat} が本質的に等価であることがわかる。
+係数行列のサイズは \eqref{eq:Schur_complement_Mat_aug} の場合 $m+\sum_{p\in P\setminus P^u} n^p$ 次元正方行列であり、 \eqref{eq:Schur_complement_Mat} の $m$次元正方行列に比べてサイズが大きいが、係数行列がスパースであるという利点をもつ。
+この方程式\eqref{eq:Schur_complement_Mat_aug}は、Section~\ref{sec:direction}と同じ手法を用いて解くことができる
+(具体的には、$A^u$ を $[\,A^u, U]$ に置き換え、$O$ を $\begin{pmatrix} O & O \\ O & -D^{-1} \end{pmatrix}$ に置き換える)。
+
+\medskip
+
+残念ながら、$\mathbb{K}^p = \mathbb{S}^{n_p}_+$ となる $p \in P$ が存在する場合、$M^p$ はほとんどの場合、特定の構造を持たない密行列となり、式 \eqref{eq:low_rank_perturbation} の形で表現するのは困難である。
+% そのため、$M$ も常に密行列となり、本節で紹介する手法はあまり有効ではない。
+一方で、任意の $p\in P$ に対して $\mathbb{K}^p \neq \mathbb{S}^{n_p}_+$ であれば、
+\eqref{eq:Schur_complement_Mat_aug} へ帰着させられる可能性がある。
+
+\medskip
+
+以下では、$\mathbb{K}^p \neq \mathbb{S}^{n_p}_+$の場合に対して、具体的な$M^p_{\mathrm{sparse}}$, $U^p$, $D^p$の構成方法を述べる。
+$A^p$のうち、sparseな列を取り出したものを$A^p_{\mathrm{sparse}}$、denseな列を取り出した行列を $A^p_{\mathrm{dense}}$ とする。
+% より正確には、対角行列$S$を
+% \[S_{ii} = \begin{cases}
+%     1 & \text{if $A^p$の$i$列目がsparse}\\
+%     0 & \text{otherwise}
+% \end{cases}\]
+% と定義すると、$A^p_{\mathrm{sparse}}=A^p S$, $A^p_{\mathrm{dense}}=A^p(I-S)$である。
+$A^p_{\mathrm{dense}}$が空であれば$M^p_{\mathrm{sparse}} = M^p$とおき、$U^p$, $D^p$は空の行列とする。
+以降では$A^p_{\mathrm{dense}}$が非空の場合を考える。
+
+\paragraph{Second-order cone:}
+
+$\mathbb{K}^p=\mathbb{Q}^{n_p}$ の場合、$-J = I - 2\,e^p(e^p)^T$ を用いると
+式 \eqref{eq:HKM_M} より
+\[
+  M^p 
+  = \bigl((x^p)^T J (z^p)^{-1}\bigr)\, A^p(A^p)^T
+    \;+\; u^p (v^p)^T
+    \;+\; v^p (u^p)^T
+    \;-\; 2\,((x^p)^T J (z^p)^{-1})\, k^p (k^p)^T,
+\]
+となる。ただし $u^p := A^p x^p$, $v^p := A^p (z^p)^{-1}$, $k^p := A^p e^p$ とおいた。
+$A^p_{\mathrm{dense}}$ が非空であれば $u^p, v^p$ は dense なベクトルになる可能性が高いことに留意する。
+
+これに基づき、SDPT3 では以下のように $M^p_{\mathrm{sparse}}$, $U^p$, $D^p$ を定義している:
+\[
+  M^p_{\mathrm{sparse}}
+    := \bigl((x^p)^T J (z^p)^{-1}\bigr)\,
+       A^p_{\mathrm{sparse}}\,(A^p_{\mathrm{sparse}})^T,
+\]
+\[
+  U^p
+    := \Bigl(\sqrt{(x^p)^T J (z^p)^{-1}}\;A^p_{\mathrm{dense}},
+       \;\;\gamma(z^p)^2\,u^p,\;\;\gamma(z^p)^2\,v^p,
+       \;-\sqrt{2\,((x^p)^T J (z^p)^{-1})}\,k^p\Bigr),
+\]
+\[
+  D^p
+    := \begin{pmatrix}
+         I & O & O & O \\
+         O & 0 & 1/\gamma(z^p)^2 & 0 \\
+         O & 1/\gamma(z^p)^2 & 0 & 0 \\
+         O & 0 & 0 & -1
+       \end{pmatrix}.
+\]
+% Note that $M^p_{\mathrm{sparse}}$ is still positive definite thanks to introducing $k^p$.
+実際、$M^p = M^p_{\mathrm{sparse}} + U^p D^p (U^p)^T$ が成り立ち、
+$k^p$ を導入したことにより $M^p_{\mathrm{sparse}}$ が正定値行列となっている。  
+ちなみに実装上は $D^p$ は直接扱わず、$-(D^p)^{-1}$ のみが必要となるが、それは
+\[
+  -(D^p)^{-1}
+  = \begin{pmatrix}
+      -I & O & O & O \\
+      O & 0 & -\gamma(z^p)^2 & 0 \\
+      O & -\gamma(z^p)^2 & 0 & 0 \\
+      O & 0 & 0 & 1
+    \end{pmatrix}
+\]
+のように書ける。
+
+
+\paragraph{Linear cone.}
+
+$\mathbb{K}^p = \mathbb{R}^{n_p}_+$ の場合はさらにシンプルである。  
+$A^p$ のスパースな列に対応した $x^p, z^p$ の要素を抜き出したベクトルを 
+$x^p_{\mathrm{sparse}}, z^p_{\mathrm{sparse}}$ とおき、
+dense な列に対応した $x^p, z^p$ の要素を 
+$x^p_{\mathrm{dense}}, z^p_{\mathrm{dense}}$ とする。
+SDPT3 では以下のように $M^p_{\mathrm{sparse}}$, $U^p$, $D^p$ 定義している:
+\[
+   M^p_{\mathrm{sparse}}
+   = A^p_{\mathrm{sparse}}
+     \,\operatorname{diag}(x^p_{\mathrm{sparse}})
+     \,\operatorname{diag}(z^p_{\mathrm{sparse}})^{-1}
+     \,(A^p_{\mathrm{sparse}})^T,
+\]
+\[
+   U^p
+   = \operatorname{diag}(x^p_{\mathrm{sparse}})^{\tfrac12}
+     \,\operatorname{diag}(z^p_{\mathrm{sparse}})^{-\tfrac12}
+     \,A^p_{\mathrm{dense}},
+\]
+\[ D^p = I, \]
+実際、$M^p = M^p_{\mathrm{sparse}} + U^p D^p (U^p)^T$ が成り立ち、 $M^p_{\mathrm{sparse}}$ が正定値行列となっている。 
+このとき 
+\[-(D^p)^{-1} = -I\] 
+である。
+
+\medskip
+
+
+\section{Other computation techniques}
+
+\subsection{\boldmath $M$ の perturbation}
+
+理論上は$\mathcal{A}$がフルランクであれば$M$は正定値となるが、実際には数値誤差があったり$\mathcal{A}$がフルランクではないインプットが与えられることにより、$M$ が正定値行列とならず、Cholesky 分解が計算できない場合がある。  
+このような数値的困難性を回避するため、SDPT3 では十分小さな $\epsilon>0$ と $\lambda>0$ を用いて
+\[
+  M \;\leftarrow\; M + \epsilon I + \lambda \sum_{p\in P} A^p (A^p)^T
+\]
+のように $M$ に微小な補正 (perturbation) を加えている。
+
+\subsection{自由変数の取り扱い}
+% $\mathbb{K}^p = \mathbb{R}^{n_p}$ となる $p \in P$ があり、
+任意の $p\in P$ に対して $\nu^p=0$ であれば、問題 (P)(D) を以下の
+3-parameter Homogeneous self-dual (HSD) model \cite{Wright1997} に変換できる:
+\[
+  \begin{array}{cl}
+   \min_{x,y,z,\tau,\kappa,\theta} & \bar{\alpha}\,\theta \\[3pt]
+   \text{s.t.}
+   & \begin{pmatrix}
+       0 & -\mathcal{A} & b & -\bar{b}\\
+       \mathcal{A}^T & 0 & -c & \bar{c}\\
+       -b^T & c^T & 0 & -\bar{g}\\
+       \bar{b}^T & -\bar{c}^T & \bar{g} & 0
+     \end{pmatrix}
+     \begin{pmatrix} y \\ x \\ \tau \\ \theta \end{pmatrix}
+   \;+\;
+     \begin{pmatrix} 0 \\ z \\ \kappa \\ 0 \end{pmatrix}
+   =
+     \begin{pmatrix} 0 \\ 0 \\ 0 \\ \bar{\alpha} \end{pmatrix}.
+  \end{array}
+\]
+ただし $(x_0,y_0,z_0,\tau_0,\kappa_0,\theta_0)\in 
+  \operatorname{int}(\mathbb{K}) \times \mathbb{R}^m \times \operatorname{int}(\mathbb{K})
+  \times \mathbb{R}^1_+ \times \mathbb{R}^1_+ \times \mathbb{R}^1_+$
+を所与として
+\begin{gather*}
+    \bar{b} = \frac{1}{\theta_0}(b\tau_0 - \mathcal{A}x_0) \\
+    \bar{c} = \frac{1}{\theta_0}(c\tau_0 - \mathcal{A}^T y_0 - z_0) \\
+    \bar{g} = \frac{1}{\theta_0}(\inprod{c}{x_0} - b^Ty_0 + \kappa_0) \\
+    \bar{\alpha} = \frac{1}{\theta_0} (\inprod{x_0}{z_0} + \tau_0 \kappa_0)
+\end{gather*}
+とおいた。
+Toh et al.~\cite{toh1999} によれば、(P)(D) の実行可能領域が非空だが内点をもたない場合、HSD model に変換してから内点法を適用すると計算時間は増えるが良い精度の解が得られることが報告されており、実際に SDPT3 にもHSD modelへの変換処理が実装されている。  
+HSD model を扱うにはアルゴリズムを若干修正する必要があるが、詳細は \cite{toh1999} を参照されたい。
+
+\medskip
+
+一方、$\nu^p\neq 0$ となる $p\in P$ が存在すると、残念ながら (P)(D) を HSD model に変換できない。
+\eqref{eq:Schur_complement_Mat} からもわかるように、
+$\mathbb{K}^p = \mathbb{R}^{n_p}$ となる $p\in P$ があると $A^u$ の存在により、解くべき方程式のサイズが大きくなって計算コスト面で不利になる。
+そこで SDPT3 では、変数 $x^p\in \mathbb{R}^{n_p}$ を非負変数 $(x^p_+,\,x^p_-)\in\mathbb{R}^{2n_p}_+$ によって
+\[
+   x^p = x^p_+ \;-\; x^p_- 
+\]
+と変数変換し、$\mathbb{R}^{n_p}$ の変数を消去している。
+
+この方法のデメリットは数値的不安定性にある。実際、$x^p_+, x^p_-$ が反復の進行につれて非常に大きくなり、対応する双対変数 $z^p_+, z^p_-$ がきわめて小さくなる傾向にある。
+これにより、$\operatorname{diag}(x^p_\pm)\,\operatorname{diag}(z^p_\pm)$ が極度に悪条件となってしまう。
+幸い、以下のようなヒューリスティックな更新式を入れることによって $x^p_+$, $x^p_-$ の値の増加を抑制し、数値的不安定性を緩和することができる:
+\[
+   x^p_+ \;\leftarrow\; x^p_+ - 0.8\,\min(x^p_+,\,x^p_-),
+   \quad
+   x^p_- \;\leftarrow\; x^p_- - 0.8\,\min(x^p_+,\,x^p_-).
+\]
+% これは元の変数 $x^p$ を変えないが、$x^p_+, x^p_-$ の両方が不要に大きくなるのを防ぐ効果がある。
+また、 $z^p_+, z^p_-$ に対しても反復ごとに $\mu$ の値と同じスケールの正の摂動を加えることで、過度に小さな値になることを防いでいる。
+
+\medskip
+
+なお、$\mathbb{K}^p=\mathbb{R}^{n_p}_+$ となるブロック $p$ においても、自由変数に変換できる非負変数対がある場合 (たとえば、ある変数の対 $x^p_i, x^p_j$ が存在して、それらの係数が $(a^p_k)_i = -(a^p_k)_j$ for all $k=1,2,\ldots,m$, $(c^p)_i = -(c^p)_j$, $\nu^p = 0$ を満たす場合) は同様の数値不安定性が起こる。そのため、そのような変数対を検知したうえで上述のヒューリスティックな解の更新を行う必要がある。
+
+
+\subsection{Preprocessing for model transformation}
+
+\subsubsection{Complex input}
+
+制御工学などの応用では、複素半正定値行列錐上の最適化問題が現れる場合があるが、
+それは実数半正定値行列錐上の問題に帰着することができる。
+以下のように定義する:
+\begin{itemize}
+    \item $m\times n$複素行列空間 $\mathbb{C}^{m\times n}$
+    \item エルミート行列の集合 $\mathbb{H}^n=\{a \in \mathbb{C}^{n\times n} \mid a = a^H\}$ ただし$a^H$は$a$の共役転置を表す。
+    \item 複素半正定値対称行列錐 $\mathbb{H}^n_+=\{a \in \mathbb{H}^n \mid x^T a x \geq 0 ~(\forall x\in \mathbb{C}^n)\}$
+    \item $\bar{\mathbb{S}}^{2n}_+ = \{(\begin{smallmatrix}
+    A & B\\
+    C & D
+\end{smallmatrix}) \in \mathbb{S}^{2n}_+ \mid A=D\in \mathbb{S}^n, ~ B=-B^T=C=-C^T\}$
+\end{itemize}
+実は、$\mathbb{H}^n_+$ と $\bar{\mathbb{S}}^{2n}_+$ は代数的に同型であることが知られている。
+すなわち写像 $\Gamma: \mathbb{H}^n\to \mathbb{S}^{2n}$ を
+\[
+  \Gamma(x)
+  := \begin{pmatrix}
+       \operatorname{real}(x) & -\operatorname{imag}(x) \\
+       \operatorname{imag}(x) & \operatorname{real}(x)
+     \end{pmatrix}
+\]
+によって定義すると、たとえば
+\[
+  x\in \mathbb{H}^n_+
+   \;\;\Longleftrightarrow\;\;
+  \Gamma(x)\in \mathbb{S}^{2n}_+
+\]
+が成り立つ。
+したがって、問題に対して $\Gamma(x)= y \in \bar{\mathbb{S}}^{2n_p}_+$ を用いて変数変換を行うことで、複素半正定値錐上の問題は実数半正定値錐上の問題に帰着することができる。
+
+
+\subsubsection{Detect diagonal block of $\mathbb{K}^p=\mathbb{S}^{n_p}_+$}
+
+$x\in \mathbb{S}^1_+$ という条件は、$x\in \mathbb{R}^1_+$ と等価である。  
+このとき $x$ を単なる実非負変数としてみなすほうが、内点法の計算効率がよい。  
+さらに $\mathbb{S}^{n_p}_+$ の変数行列内に対角ブロックがある場合、それらを非負実数変数に変換すると
+同様の計算効率向上が得られる。
+
+正確には、ある整数 $i$ について、
+$(c^p)_{ij}=(c^p)_{ji}=0$ かつ $(a^p_k)_{ij}=(a^p_k)_{ji}=0$ 
+($\forall j\neq i,\,\forall k$) のとき、
+$x\in \mathbb{S}^{n_p}_+$ を $(\bar{x},\,\hat{x})\in \mathbb{S}^{n_p-1}_+\times \mathbb{R}^1_+$ に変数変換する。
+ただし $\bar{x}$ は $x$ から第 $i$ 行と第 $i$ 列を削除した行列であり、
+$x_{ij}= x_{ji}=0$ ($\forall j\neq i$) である。
+
+\begin{example}
+\begin{equation*}
+    \left|
+    \begin{array}{cl}
+        \min & \inprod{\begin{pmatrix}
+            3 & 0 & 1 \\
+            0 & 5 & 0 \\
+            1 & 0 & 2
+        \end{pmatrix}}{X} \\
+        s.t. 
+        & \inprod{\begin{pmatrix}
+            1 & 0 & 0 \\ 
+            0 & 2 & 0 \\ 
+            0 & 0 & 3
+        \end{pmatrix}}{X} = 1 \\
+        & X\in \mathbb{S}^3_+ 
+    \end{array}
+    \right.
+    \Longleftrightarrow
+    \left|
+    \begin{array}{cl}
+        \min & \inprod{\begin{pmatrix}
+            3 & 1 \\
+            1 & 2
+        \end{pmatrix}}{\bar{X}} + 5\hat{x} \\
+        s.t. 
+        & \inprod{\begin{pmatrix}
+            1 & 0 \\ 0 & 3
+        \end{pmatrix}}{\bar{X}} + 2\hat{x} = 1 \\
+        & \bar{X}\in \mathbb{S}^2_+, \quad \hat{x} \in \mathbb{R}^1_+
+    \end{array}
+    \right.
+\end{equation*}
+\end{example}
+実際、SDPLIB の xxx などにおいて、このような diagonal block が多数存在する。
+
+\subsubsection{Artificial linear block}
+
+本稿で紹介した内点法アルゴリズムは、$m \geq 1$ かつ $\exists p\in P ~ \text{s.t.} ~ \nu^p=0$ を仮定している。(主に \eqref{eq:NewtonKKT} と \eqref{eq:mu} のため。)
+
+
+これらの条件が満たされていない場合、冗長な1つの非負変数 $x^{p_{\max} + 1}$ と1つの制約
+\[
+  -\sum_{p\in P} \inprod{e^p}{x^p}_p + x^{p_{\max} + 1} = 0
+\]
+を追加することで仮定を満たした定式化にすることができる。
+より正確には、以下のように新しいパラメーターを設定する。
+\begin{itemize}
+    \item $\mathbb{K}^{p_{\max} + 1} = \mathbb{R}^1_+$
+    \item $a^{p}_1=e^p ~ (p \in P)$, $a^{p_{\max} + 1}_1 = 1$
+    \item $b = 0$
+    \item $c^{p_{\max} +1}=0$
+    \item $\nu^{p_{\max} + 1} = 0$
+\end{itemize}
+
+
+\subsubsection{Reordering Matrix Variables}
+変数 $x^p, z^p$ の正定値性を判定する方法として、Cholesky 分解が成功するか否かを確認するのが
+数値的に安定である。 
+内点法では反復ごとにこの Cholesky 分解を行っているため、フィルインをできるだけ少なくすることが重要である。  
+SDPT3 では、Cholesky 分解によるフィルインを最小化するため、行列変数の並び替えを行っている。
+具体的には、
+\[
+  t^p = |c^p| + \sum_{k=1}^m |a^p_k|
+\]
+% （初期解が与えられている場合は $+ |(x^p)^0|$ も加味）
+と定義し、これに Reverse Cuthill--Mckee Algorithm を適用して
+置換 $\sigma$ を得る。
+最後に $(\bar{x}^p)_{ij} = (x^p)_{\sigma(i)\sigma(j)}$ のように変数変換を行う。
+
+\begin{example}
+\[
+    t^p = \begin{pmatrix}
+        3 & 0 & 1 \\
+        0 & 5 & 0 \\
+        1 & 0 & 2
+    \end{pmatrix}
+\]に対してReverse Cuthill-Mckee Algorithm を適用すると、 $\sigma(1)=3, ~ \sigma(2)=1, ~ \sigma(3)=2$ が得られる。
+この置換による変数変換を $t^p$ に対して行ったものを $\bar{t}^p$ とおくと、
+\[
+    \bar{t}^p = \begin{pmatrix}
+        3 & 1 & 0 \\
+        1 & 2 & 0 \\
+        0 & 0 & 5
+    \end{pmatrix}
+\]
+であり確かにバンド幅が小さくなっている。
+\end{example}
+
+
+\subsubsection{行列の対称性の活用}
+% 複数の半正定値行列錐のブロックがある場合、それらの係数行列を保持する方法の1つとして、MATLABのセル配列を用いている方法をSDPT3は採用していたが、セル配列アクセスのオーバーヘッドが大きいために、SeDuMiで採用されているような各行列をベクトル化して結合した形で保持するのが効率的である。
+$\mathbb{K}^p=\mathbb{S}_+^p$ となるブロック $p$ において、係数行列の対称性に着目することでメモリ使用量、および行列の内積の計算量を削減することができる。
+
+ある実対称行列 $A\in \mathbb{S}^n$ が与えられたとき、$i\leq j$について、 $\operatorname{svec}: \mathbb{S}^n \rightarrow \mathbb{R}^{n(n+1)/2}$ を以下のように定義する。
+% \[\operatorname{svec}(A)= (A_{11}, \sqrt{2}A_{21}, \ldots, \sqrt{2}A_{n1}, A_{22}, \sqrt{2}A_{32}, \ldots, A_{nn} )\]
+\[ \operatorname{svec}(A)= (a_1^T, a_2^T, \ldots a_n^T)^T \]
+ただし
+\[ a_j = (f_{j,j} A_{j,j}, ~ f_{j+1,j}A_{j+1,j}, ~ \ldots ~ , ~ f_{n,j} A_{n,j})^T \in \mathbb{R}^{n-j+1} \]
+\[ f_{ij}= \begin{cases} 1 & \text{if} ~ i=j \\ \sqrt{2} & \text{otherwise} \end{cases}\]
+
+\begin{example}
+\[A = \begin{pmatrix}
+    1 & 2 & 3\\
+    2 & 4 & 5\\
+    3 & 5 & 6
+\end{pmatrix} \rightarrow \operatorname{svec}(A) = (1, ~ 2\sqrt{2}, ~ 3\sqrt{2}, ~ 4, ~ 5\sqrt{2}, ~ 6)^T\]
+\end{example}
+
+このとき以下の等式が成り立つ
+\[\inprod{A}{A} = \operatorname{svec}(A)^T \operatorname{svec}(A).\]
+したがって、実装上は $A$ の代わりに $\operatorname{svec}(A)$ を保持することで、メモリの使用量だけでなく内積の計算量も約半減することができる。
+SDPT3では、係数行列 $a^p_k$ の値を保持する際に $\operatorname{svec}$ 形式を採用している。($c^p$ や $x^p, ~ z^p$ は行列形式のまま保持している。)
+
+
+\section{Summary}
+ここまで述べてきた様々なテクニックを導入したprimal-dual path-following infeasible-interior-point methodの擬似コードは以下のとおりである。
+% \begin{algorithm}
+% Primal-dual path-following infeasible-interior-point method
+% \begin{algorithmic}[1]
+% \REQUIRE $\sigma\in[0,1)$
+% \STATE $x,y,z$の初期化
+% \STATE xxxxxxxxxxxxxx
+% \FOR{it in $1,2,\ldots,\text{maxit}$}
+%     \STATE 式\eqref{eq:Schur_complement_Mat_aug}の係数行列$M$, $A^u$, $U$, $-D^{-1}$ を計算
+%     \STATE $M$のcholesky分解と$S$のLU分解を計算
+%     \STATE $\mathcal{A}\mathcal{H}R_{dual}$と$R^u_{dual}$を計算
+%     % \STATE sigma \& muの計算
+%     \STATE $R_{comp}$を計算
+%     \STATE $\mathcal{A}\mathcal{E}^{-1}R_{comp}$ 計算
+%     \STATE $h = R_{prim} + \mathcal{A}\mathcal{E}^{-1}R_{comp} - \mathcal{A}\mathcal{H}R_{dual}$を計算する。
+%     \STATE 式\eqref{eq:Schur_complement_Mat_aug}を解き、$\delta y, \delta x^u$を得る
+%     \STATE 式\eqref{eq:sol_x_z}より、$\delta x, \delta z$を得る
+%     \STATE $\mu$および$\sigma$を計算する
+%     % \STATE heuristic stopping criteria
+%     \STATE $R_{comp}$を式\eqref{}に従い計算する。
+%     \STATE $h$を式\eqref{}に従い計算する。
+%     \STATE 
+%     \STATE dX, dZの計算
+%     \STATE ... TBA
+%     \IF{$x,y,z$ satisfies the conditions}
+%         \RETURN x,y,z
+%     \ENDIF
+% \ENDFOR
+% \end{algorithmic}
+% \end{algorithm}
+
+
+\appendix
+\section{A Guide to the Derivation of Equations \eqref{eq:HKM_HRd}--\eqref{eq:NT_M}} \label{sec:guide_for_dir_eq}
+
+% \begin{equation}
+%     \everymath{\displaystyle}
+%     \renewcommand{\arraystretch}{2.5}
+%     \begin{array}{rl}
+%        & \sum_{p=1}^P \mathcal{A}^p(\Delta x^p) = R_{prim} \\
+%        \Leftrightarrow 
+%        & \sum_{p = u} \mathcal{A}^p(\Delta x^p) + \sum_{p \neq u} \mathcal{A}^p(\Delta x^p) = R_{prim} \\
+%        \Leftrightarrow 
+%        & \sum_{p = u} \mathcal{A}^p((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(R_{dual}^p - \mathcal{A}^p(\Delta y))) + \sum_{p \neq u} \mathcal{A}^p(\Delta x^p) = R_{prim} \\
+%        \Leftrightarrow 
+%        & \sum_{p = u} \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T\Delta y = h :=  R_{prim} - \sum_{p = u} \mathcal{A}^p((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p) - \sum_{p \neq u} \mathcal{A}^p(\Delta x^p)
+%     \end{array}
+% \end{equation}
+
+% \begin{align*}
+% a>0 \quad \text{and} \quad c>0 
+% & \Rightarrow (\Delta x^p)_0 > \|\Delta \bar{x}^p\| \quad \text{and} \quad (x^p)_0 > \|\bar{x}^p\| \\
+% & \Rightarrow (\Delta x^p)_0 (x^p)_0 > \|\Delta \bar{x}^p\|\|\bar{x}^p\| \geq (\Delta \bar{x}^p)^T \bar{x}^p \\
+% & \Rightarrow b = (\Delta x^p)_0 (x^p)_0 - (\Delta \bar{x}^p)^T \bar{x}^p > 0
+% \end{align*}
+
+$\mathbb{K}^p=\mathbb{S}_+^{n_p}$の場合、HKM directionでは$G^p=(z^p)^\frac{1}{2}$であり、$\mathcal{E}\Delta x = ((z^p)^\frac{1}{2}\Delta x^p)\circ ((z^p)^{-\frac{1}{2}}z^p)=(z^p)^\frac{1}{2} \Delta x^p (z^p)^\frac{1}{2}$であることに注意すれば容易に導出できる。NT directionに対する導出は非自明であるため、文献\cite{todd1998}を参照されたい。
+$\mathbb{K}^p=\mathbb{Q}^{n_p}$の場合、$f\in \mathbb{R}^{n^p}$に対して、 %線形作用素$Arw: \mathbb{R}^{n_p} \rightarrow \mathbb{R}^{n\times n}$を以下で定義し
+\begin{equation}
+    \operatorname{Arw}(f) = 
+    \left(
+    \begin{array}{cc}
+        f_0 & \bar{f}^T \\
+        \bar{f} & f_0 I
+    \end{array}
+    \right)
+\end{equation}
+を用いると、$x^p \circ z^p = \operatorname{Arw}(x^p)z^p$が成り立つため、
+\begin{align*}
+    (\mathcal{E}^p)^{-1}R^p_{comp} &= G^p \cdot \operatorname{Arw}(G^p x^p)^{-1} \cdot R^p_{comp}\\
+    \mathcal{H}^p R^p_{dual} &= G^p \cdot \operatorname{Arw}(G^p x^p)^{-1} \cdot \operatorname{Arw}\big((G^p)^{-1} z^p\big) \cdot(G^p)^{-1} \cdot R^p_{dual}\\
+    \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T &= A^p \cdot G^p \cdot \operatorname{Arw}(G^p x^p)^{-1} \cdot \operatorname{Arw}\big((G^p)^{-1} z^p\big) \cdot(G^p)^{-1} \cdot (A^p)^T
+\end{align*}
+と一般的に記述することができる。更に
+\begin{equation*}
+    \operatorname{Arw}(f)^{-1} = \frac{1}{\gamma(f)^2} \left(\begin{array}{cc}
+        f_0 & -\bar{f}^T \\
+        -\bar{f} & \frac{1}{f_0}(\gamma(f)^2 I + \bar{f}\bar{f}^T)
+    \end{array}\right),
+    \qquad
+    (G^p)^{-1} = \frac{1}{\omega^p} \begin{pmatrix}
+        t^p_0 & -(\bar{t}^p)^T \\
+        -\bar{t}^p & I+\frac{1}{1 + t^p_0} \bar{t}^p(\bar{t}^p)^T
+    \end{pmatrix}
+\end{equation*}
+が成り立つ(ただし$\gamma(t)=1$を仮定していることに注意)ことを利用すれば式\eqref{eq:HKM_HRd}--\eqref{eq:NT_M}を導くことができる。
+$\mathbb{K}^p=\mathbb{R}^{n_p}_+$の場合、$\mathcal{E}^p \Delta x^p = \operatorname{diag}(z^p) \Delta x^p$であることから容易に導出できる。
+
+\bibliographystyle{plain}
+\bibliography{references}
+\end{document}
