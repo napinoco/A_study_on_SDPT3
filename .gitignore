@@ -51,6 +51,3 @@
 *.backup
 tmp/
 temp/
-
-# Claude Code configuration
-CLAUDE.md
