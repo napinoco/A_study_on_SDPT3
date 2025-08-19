@@ -2,7 +2,8 @@
 
 \subsection{Perturbation of \boldmath $M$ }
 
-Theoretically, if $\mathcal{A}$ is full rank, $M$ will be positive definite. However, in practice, due to numerical errors or inputs where $\mathcal{A}$ is not full rank, $M$ may not be a positive definite matrix, and Cholesky decomposition may fail.  
+Theoretically, if $\mathcal{A}$ is full rank, $M$ will be positive definite.
+However, in practice, due to numerical errors or inputs where $\mathcal{A}$ is not full rank, $M$ may not be a positive definite matrix, and Cholesky decomposition may fail.  
 To avoid such numerical difficulties, SDPT3 applies a small perturbation to $M$ using sufficiently small $\epsilon > 0$ and $\lambda > 0$:
 \[
   M \;\leftarrow\; M + \epsilon I + \lambda \sum_{p\in P} A^p (A^p)^T
@@ -37,7 +38,8 @@ we define
     \bar{g} = \frac{1}{\theta_0}(\inprod{c}{x_0} - b^Ty_0 + \kappa_0) \\
     \bar{\alpha} = \frac{1}{\theta_0} (\inprod{x_0}{z_0} + \tau_0 \kappa_0)
 \end{gather*}
-According to Toh et al.~\cite{toh1999}, if the feasible region of (P)(D) is non-empty but does not contain an interior point, converting to the HSD model and then applying the interior-point method results in longer computation times but yields better accuracy. This approach is implemented in SDPT3.  
+According to Toh et al.~\cite{toh1999}, if the feasible region of (P)(D) is non-empty but does not contain an interior point, converting to the HSD model and then applying the interior-point method results in longer computation times but yields better accuracy.
+This approach is implemented in SDPT3.  
 Handling the HSD model requires slight modifications to the algorithm, detailed in \cite{toh1999}.
 
 \medskip
@@ -49,7 +51,8 @@ Therefore, SDPT3 eliminates the free variable $x^p \in \mathbb{R}^{n_p}$ by tran
    x^p = x^p_+ \;-\; x^p_- 
 \]
 
-The downside of this method is numerical instability. In practice, $x^p_+$ and $x^p_-$ tend to become very large as iterations progress, while the corresponding dual variables $z^p_+, z^p_-$ tend to become very small.
+The downside of this method is numerical instability.
+In practice, $x^p_+$ and $x^p_-$ tend to become very large as iterations progress, while the corresponding dual variables $z^p_+, z^p_-$ tend to become very small.
 This results in $\operatorname{diag}(x^p_\pm)\,\operatorname{diag}(z^p_\pm)$ becoming extremely ill-conditioned.
 Fortunately, heuristic update formulas can be applied to suppress the increase in $x^p_+$ and $x^p_-$ values, mitigating numerical instability:
 \[

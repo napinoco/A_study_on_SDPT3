@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a LaTeX academic project documenting the algorithm and implementation of SDPT3, a MATLAB solver for semidefinite-quadratic-linear programming. The main document is a technical report written in English with mathematical content.
+This is a LaTeX academic project documenting the algorithm and implementation of SDPT3, a MATLAB solver for semidefinite-quadratic-linear programming.
+The main document is a technical report written in English with mathematical content.
 
 ## Build Commands
 
