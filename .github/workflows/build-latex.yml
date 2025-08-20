@@ -15,18 +15,11 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup TeX Live
-      uses: teatimeguest/setup-texlive-action@v3
+      uses: xu-cheng/latex-action@v3
       with:
-        packages: >-
-          collection-latex
-          collection-luatex
-          collection-langjapanese
-          latexmk
+        root_file: main_en.tex
+        latexmk_use_xelatex: true
           
-    - name: Build PDF with latexmk
-      run: |
-        latexmk -pdf main_en.tex
-        
     - name: Upload PDF artifact
       uses: actions/upload-artifact@v4
       with:
