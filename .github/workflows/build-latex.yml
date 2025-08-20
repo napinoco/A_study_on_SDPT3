@@ -1,0 +1,35 @@
+name: Build LaTeX Document
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-latex:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup TeX Live
+      uses: teatimeguest/setup-texlive-action@v3
+      with:
+        packages: >-
+          collection-latex
+          collection-luatex
+          collection-langjapanese
+          latexmk
+          
+    - name: Build PDF with latexmk
+      run: |
+        latexmk -pdf main_en.tex
+        
+    - name: Upload PDF artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: latex-pdf-${{ github.sha }}
+        path: main_en.pdf
+        retention-days: 30
