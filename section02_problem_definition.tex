@@ -8,7 +8,7 @@ In this paper, we consider the following primal problem \((P)\) and its correspo
     \left|
     \begin{array}{cl}
          \min_{x} & \displaystyle 
-             \sum_{p \in P} \Bigl(\inprod{c^p}{x^p}_p\Bigr) 
+             \sum_{p \in P} \inprod{c^p}{x^p}_p 
              \;+\;\sum_{p \in P} \phi^p\bigl(x^p;\,\nu^p\bigr) \\[3pt]
          \text{s.t.} 
          & \displaystyle 
@@ -27,22 +27,28 @@ In this paper, we consider the following primal problem \((P)\) and its correspo
          \text{s.t.} 
          & \displaystyle 
             c^p \;-\; \sum_{k=1}^m a^p_k\,y_k \;=\; z^p \quad (p\in P), \\[3pt]
-         & z^p \;\in\; (\mathbb{K}^p)^* \quad (p\in P).
+         & y \;\in\; \mathbb{R}^m, \quad z^p \;\in\; (\mathbb{K}^p)^* \quad (p\in P)
     \end{array}
     \right.
 \end{equation*}
-
-Here, the following parameters are assumed to be given:
+where the following parameters are assumed to be given:
 \begin{itemize}
     \item A positive integer $p_{\max}$ representing the number of cone blocks, and the index set $P = \{1, 2, \ldots, p_{\max}\}$.
-    \item For each block $p \in P$, a positive integer $n_p$ representing the dimension of the variables, and a positive integer $m$ representing the number of constraints.
+    \item For each block $p \in P$, a positive integer $n_p$ representing the dimension of the variables.
+    \item A positive integer $m$ representing the number of constraints.
     \item The cone $\mathbb{K}^p$ for each $p \in P$, which is one of $\mathbb{S}^{n_p}_+$, $\mathbb{Q}^{n_p}$, $\mathbb{R}^{n_p}_+$, or $\mathbb{R}^{n_p}$.
-    \item Coefficients $c^p$ and $a^p_k$ for $k = 1, \ldots, m$ and $p \in P$, where $c^p, a^p_k \in \mathbb{S}^{n_p}$ if $\mathbb{K}^p = \mathbb{S}^{n_p}_+$, and $\in \mathbb{R}^{n_p}$ otherwise.
+    \item Coefficients $c^p$ and $a^p_k$ for $k = 1, \ldots, m$ and $p \in P$, where:
+      \begin{itemize}
+          \item $c^p, a^p_k \in \mathbb{S}^{n_p}$ if $\mathbb{K}^p = \mathbb{S}^{n_p}_+$
+          \item $c^p, a^p_k \in \mathbb{R}^{n_p}$ otherwise
+      \end{itemize}
     \item A coefficient vector $b \in \mathbb{R}^m$.
     \item Non-negative parameters $\nu^p \ge 0$ for all $p \in P$.
 \end{itemize}
-
-The dual cone $(\mathbb{K}^p)^*$ is defined as:
+%
+The notation $(\mathbb{K}^p)^*$ denotes the dual cone of $\mathbb{K}^p$, 
+i.e., $(\mathbb{K}^p)^* = \{ z^p \mid \inprod{x^p}{z^p}_p \geq 0 \text{ for all } x^p \in \mathbb{K}^p \}$, 
+which in our case takes the following forms:
 \[
 (\mathbb{K}^p)^* = 
 \begin{cases}
@@ -52,6 +58,7 @@ The dual cone $(\mathbb{K}^p)^*$ is defined as:
     \{0\}                & \text{if } \mathbb{K}^{p} = \mathbb{R}^{n_p}.
 \end{cases}
 \]
+%
 The inner product $\left\langle a, x \right\rangle_p$ is defined as:
 \[
 \left\langle a, x \right\rangle_p = 
@@ -63,7 +70,7 @@ The inner product $\left\langle a, x \right\rangle_p$ is defined as:
     & \text{otherwise}.
 \end{cases}
 \]
-
+%
 The function $\phi^p : \mathbb{K}^p \to \mathbb{R}_+$ is a barrier function defined as:
 \[
 \phi^p(x^p;\, \nu^p) =
@@ -74,9 +81,11 @@ The function $\phi^p : \mathbb{K}^p \to \mathbb{R}_+$ is a barrier function defi
     0, & \text{if } \mathbb{K}^{p} = \mathbb{R}^{n_p},
 \end{cases}
 \]
-where, as introduced in Section~\ref{sec:notation}, $\gamma(x^p) = \sqrt{(x^p)^T J x^p}$.
-
-The function $\phi^{p*} : \mathbb{K}^p \to \mathbb{R}_+$ is the convex conjugate of $\phi^p$, defined by:
+where $\gamma(x^p) = \sqrt{(x^p)^T J x^p}$ as introduced in Section~\ref{sec:notation}.
+%
+The notation $\phi^{p*}$ denotes the convex conjugate of $\phi^p$, 
+i.e., $\phi^{p*}(z^p; \nu^p) = \sup_{x^p \in \mathbb{K}^p} \{\langle z^p, x^p \rangle_p - \phi^p(x^p; \nu^p)\}$, 
+which in our case takes the following forms:
 \[
 \phi^{p*}(z^p;\, \nu^p) =
 \begin{cases}
@@ -91,4 +100,4 @@ The function $\phi^{p*} : \mathbb{K}^p \to \mathbb{R}_+$ is the convex conjugate
 \]
 
 When $\nu^p = 0$ for all $p \in P$, problems $(P)$ and $(D)$ reduce to the standard form of conic linear programming.
-By considering the case $\nu^p > 0$, we can handle a broader class of problems, including those involving log-determinant terms.
+By considering the case $\nu^p > 0$, we can handle a broader class of problems, including log-determinant optimization problems.
