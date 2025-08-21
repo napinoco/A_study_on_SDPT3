@@ -317,7 +317,7 @@ When the search direction option is set to \texttt{HKM}, SDPT3 uses:
     \end{cases} \label{eq:HKM_HRd}\\
     M^p &= \begin{cases} 
         \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{x^p a^p_\ell (z^p)^{-1}} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
-        -\Big( (x^p)^T J (z^p)^{-1} \Big) A^p J (A^p)^T + (A^p x^p)(A^p (z^p)^{-1})^T + (A^p (z^p)^{-1})(A^p x^p)^T& \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
+        -\Big( (x^p)^T J (z^p)^{-J} \Big) A^p J (A^p)^T + (A^p x^p)(A^p (z^p)^{-J})^T + (A^p (z^p)^{-J})(A^p x^p)^T& \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
         A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+.
     \end{cases}
 \end{align}
@@ -392,19 +392,19 @@ In this section, we explain the method for calculating the step sizes $\alpha_P$
   \bigl(x + \alpha_P\,\Delta x,\;\; y + \alpha_D\,\Delta y,\;\; z + \alpha_D\,\Delta z\bigr).
 \]
 
-The iteration points must satisfy
+The step sizes must be chosen such that the new iterates satisfy
 \[
   x + \alpha_P \Delta x \;\in\; \operatorname{int}\bigl(\mathbb{K}\bigr),
   \quad
-  z + \alpha_D \Delta z \;\in\; \operatorname{relint}\bigl((\mathbb{K})^*\bigr),
+  z + \alpha_D \Delta z \;\in\; \operatorname{relint}\bigl((\mathbb{K})^*\bigr).
 \]
-thus we calculate
+To ensure this, we first compute the maximum feasible step lengths
 \[
-  \alpha_x  := \sup \bigl\{\,\alpha \ge 0 \mid x + \alpha \,\Delta x \in \mathbb{K}\bigr\},
+  \alpha_x  := \sup \bigl\{\,\alpha \in [0,1] \mid x + \alpha \,\Delta x \in \mathbb{K}\bigr\},
   \quad
-  \alpha_z  := \sup \bigl\{\,\alpha \ge 0 \mid z + \alpha \,\Delta z \in (\mathbb{K})^*\bigr\}
+  \alpha_z  := \sup \bigl\{\,\alpha \in [0,1] \mid z + \alpha \,\Delta z \in (\mathbb{K})^*\bigr\}
 \]
-and use a suitable constant $\gamma\in(0,1)$ (e.g., $\gamma=0.99$) to define
+and then use a constant $\gamma\in(0,1)$ (e.g., $\gamma=0.99$) to obtain the actual step sizes
 \[
   \alpha_P 
     = \gamma \,\alpha_x, 
@@ -414,12 +414,13 @@ and use a suitable constant $\gamma\in(0,1)$ (e.g., $\gamma=0.99$) to define
 \]
 
 \subsubsection{Computation of $\alpha_x$}
-Below, we show the method for calculating $\alpha_x$.  
-Let \[\alpha^p_x:=\sup\{\alpha \geq 0 \mid x^p + \alpha \Delta x^p \in \mathbb{K}^p\} \quad (p\in P)\]
-then $\alpha_x=\min\{\alpha^p_x\mid p\in P\}$ holds.
+Let \[
+  \alpha^p_x:=\sup\{\alpha \geq 0 \mid x^p + \alpha \Delta x^p \in \mathbb{K}^p\} \quad (p\in P)
+\]
+then $\alpha_x = \min\{1, \min\{\alpha^p_x \mid p \in P\}\}$ holds.
+Below we describe the computation of the maximum feasible step length $\alpha^p_x$ for each cone type.
 
-\paragraph{Case 1: $\mathbb{K}^p = \mathbb{S}^{n_p}_+$.}
-
+\paragraph{Semidefinite cone: $\mathbb{K}^p = \mathbb{S}^{n_p}_+$.}
 Using the Cholesky decomposition $x^p=LL^T$ of $x^p$,
 \[\alpha^p_x = \sup\{\alpha \geq 0 \mid I + \alpha L^{-1} \Delta x^p (L^T)^{-1} \in \mathbb{K}^p\}\]
 holds, thus if $\lambda_{\max}$ is the largest eigenvalue of $-L^{-1} \Delta x^p (L^T)^{-1}$,
@@ -430,80 +431,78 @@ holds, thus if $\lambda_{\max}$ is the largest eigenvalue of $-L^{-1} \Delta x^p
 is obtained.
 $\lambda_{\max}$ can be efficiently calculated with good accuracy using methods such as the Lanczos method \cite{Golub2013}.
 
-\paragraph{Case 2: $\mathbb{K}^p = \mathbb{Q}^{n_p}$.}
-
-Using the following quadratic form
+\paragraph{Second-order cone: $\mathbb{K}^p = \mathbb{Q}^{n_p}$.}
+Let
 \begin{align*}
-  f^p(\alpha^p)
-  :&= ( x^p + \alpha^p \Delta x^p )^T J ( x^p + \alpha^p \Delta x^p )\\
-   &=  ( x^p_0 + \alpha \Delta x^p_0 )^2 - \bigl\|( \bar{x}^p + \alpha \Delta \bar{x}^p )\bigr\|^2
+  f^p(\alpha)
+  :&= ( x^p + \alpha \Delta x^p )^T J ( x^p + \alpha \Delta x^p )\\
+   &=  ( x^p_0 + \alpha \Delta x^p_0 )^2 - \bigl\|( \bar{x}^p + \alpha \Delta \bar{x}^p )\bigr\|^2.
 \end{align*}
-we can write
+Then we have
 \begin{align*}
     \alpha_x^p 
     &= \sup\{\alpha \geq 0 \mid x^p + \alpha \Delta x^p \in \mathbb{Q}^{n_p}\}\\
     &= \sup\{\alpha \geq 0 \mid f^p(\alpha) \geq 0, ~x^p_0 + \alpha \Delta x^p_0 \geq 0\}.
 \end{align*}
 
-Consider the positive roots of the quadratic equation $f(\alpha)=0$. % List all positive roots and take the interval up to the maximum $\alpha$.
-Expanding $f^p$,
+Consider the non-negative roots of the quadratic equation $f^p(\alpha)=0$. 
+Expanding $f^p(\alpha)$, we get 
 \begin{align*}
-    f^p(\alpha) = \alpha^2\underbrace{(\Delta x^p)^T J (\Delta x^p)}_a + 2 \alpha \underbrace{(x^p)^T J (\Delta x^p)}_b + \underbrace{(x^p)^T J x^p}_c
+    f^p(\alpha) = \alpha^2\underbrace{(\Delta x^p)^T J (\Delta x^p)}_a + 2 \alpha \underbrace{(x^p)^T J (\Delta x^p)}_b + \underbrace{(x^p)^T J x^p}_c,
 \end{align*}
-where $d:=b^2-ac$.
-Since $x^p\in \operatorname{int}(\mathbb{Q}^{n_p})$, $c = (x^p_0)^2 - \|\bar{x}^p\|^2 > 0$, the quadratic equation $f^p(\alpha) = 0$ has positive solutions in the following three cases:
+where the discriminant is $d:=b^2-ac$.
+Since $x^p\in \operatorname{int}(\mathbb{Q}^{n_p})$ is assumed, we have $c = (x^p_0)^2 - \|\bar{x}^p\|^2 > 0$.
+Hence the quadratic equation $f^p(\alpha) = 0$ has positive solutions only in the following three cases:
 \begin{enumerate}
     \item When $a<0$, $\alpha=\frac{-b-\sqrt{d}}{a}$ is the only positive solution.
     \item When $a=0$ and $b<0$, $\alpha=-\frac{c}{2b}$ is the only positive solution.
     \item When $a>0$, $b<0$, and $d\geq 0$, $\alpha=\frac{-b-\sqrt{d}}{a}$ is the smallest positive solution.
 \end{enumerate}
-These solutions always satisfy $x^p_0+\alpha \Delta x^p_0\geq 0$.
-(\textbf{Proof:} If $\Delta x^p_0 \geq 0$, it is trivial. Consider the case $\Delta x^p_0 < 0$. First, $f^p(0)=c>0$. Also,
-% Note that $f^p(\alpha) = (x^p_0 + \alpha \Delta x^p_0)^2 - \|(x^p + \alpha \Delta x^p)\|^2$,
-$f^p(-\frac{x^p_0}{\Delta x^p_0}) = - \|(x^p -\frac{x^p_0}{\Delta x^p_0} \Delta x^p)\|^2 \leq 0$.
-Thus, the smallest positive solution of $f^p(\alpha) = 0$ exists in the interval $\big(0, \frac{x^p_0}{-\Delta x^p_0}\big]$, and in this interval $x^p_0+\alpha \Delta x^p_0\geq 0$ always holds.)
+Furthermore, these solutions always satisfy $x^p_0+\alpha \Delta x^p_0\geq 0$.
+(\textbf{Proof:} If $\Delta x^p_0 \geq 0$, it is trivially satisfied. 
+Consider the case $\Delta x^p_0 < 0$. 
+Note that $f^p(0)=c>0$ and $f^p(-\frac{x^p_0}{\Delta x^p_0}) = - \|(x^p -\frac{x^p_0}{\Delta x^p_0} \Delta x^p)\|^2 \leq 0$.
+Therefore, the smallest positive solution of $f^p(\alpha) = 0$ exists in the interval $\big(0, \frac{x^p_0}{-\Delta x^p_0}\big]$, 
+and throughout this interval $x^p_0+\alpha \Delta x^p_0\geq 0$ holds.)
 
 Therefore,
 \begin{equation*}
     \alpha^p_x=\begin{cases}
        \frac{-b - \sqrt{d}}{a} & \text{if } (a < 0) \text{ or } (a > 0 \text{ and } b < 0 \text{ and } d \geq 0)\\
-       -\frac{c}{2b} & \text{if $a=0$} \\
-       \infty & \text{otherwise}
+       -\frac{c}{2b} & \text{if } a=0 \text{ and } b<0\\
+       +\infty & \text{otherwise}
     \end{cases}
 \end{equation*}
 
-\paragraph{Case 3: $\mathbb{K}^p = \mathbb{R}^{n_p}_+$.}
-In this case,
+\paragraph{Nonnegative orthant: $\mathbb{K}^p = \mathbb{R}^{n_p}_+$.}
+For each component $i=1,2,\ldots,n_p$, define
 \[
 t_i= \begin{cases}
-    x^p_i / (-\Delta x^p_i) & \text{if } \Delta x^p_i < 0 \\
-    +\infty & \text{otherwise}
+    -x^p_i / \Delta x^p_i & \text{if } \Delta x^p_i < 0 \\
+    +\infty & \text{otherwise}.
 \end{cases}
 \]
-then,
+Then
 \[
-    \alpha^p_x = \min\{t_i \mid i=1,2,\ldots,n_p\}
+    \alpha^p_x = \min\{t_i \mid i=1,2,\ldots,n_p\}.
 \]
-holds.
 
-\paragraph{Case 4: $\mathbb{K}^p = \mathbb{R}^{n_p}$.}
-In this case, there are no constraints, so $\alpha^p_x=+\infty$ is acceptable.
+\paragraph{Free variables: $\mathbb{K}^p = \mathbb{R}^{n_p}$.}
+In this case, $\alpha^p_x=+\infty$ since there are no constraints on $x^p$.
 
-\medskip
 
 \subsubsection{Computation of $\alpha_z$}
-For $\alpha_z$, we calculate $\alpha^p_z = \sup\{\alpha\in [0, 1] \mid z^p + \alpha\Delta z^p \in (\mathbb{K}^p)^*\}$ for each block, and then $\alpha_z=\min\{\alpha^p_z \mid p \in P\}$.
-Since $\mathbb{K}^p=\mathbb{S}^{n_p}_+,\mathbb{Q}^{n_p},\mathbb{R}^{n_p}_+$ are self-dual (i.e., $\mathbb{K}^p = \bigl(\mathbb{K}^p\bigr)^*$), $\alpha^p_z$ can be calculated in the same way as $\alpha^p_x$.
-For $\mathbb{K}^p=\mathbb{R}^{n_p}$, since $\bigl(\mathbb{K}^p\bigr)^*=\{0\}^{n_p}$, $\Delta z^p = 0$ always holds, so $\alpha^p_z=+\infty$ is acceptable.
+To compute $\alpha_z$, we first calculate $\alpha^p_z = \sup\{\alpha \geq 0 \mid z^p + \alpha\Delta z^p \in (\mathbb{K}^p)^*\}$ for each block $p \in P$, then take $\alpha_z=\min\{1, \min\{\alpha^p_z \mid p \in P\}\}$.
+Since $\mathbb{K}^p=\mathbb{S}^{n_p}_+,\mathbb{Q}^{n_p},\mathbb{R}^{n_p}_+$ are self-dual cones ($\mathbb{K}^p = (\mathbb{K}^p)^*$), $\alpha^p_z$ can be calculated in the same way as $\alpha^p_x$.
+For $\mathbb{K}^p=\mathbb{R}^{n_p}$, since $(\mathbb{K}^p)^*=\{0\}^{n_p}$, we have $\Delta z^p = 0$ and thus $\alpha^p_z=+\infty$.
 
-\medskip
 
 \subsection{Initial Points}
 \label{sec:initial_points}
-The algorithms described in this paper can start from infeasible initial points, but the choice of initial points greatly affects the convergence speed and numerical stability of the iterations.
-In practice, existing solvers (such as SDPT3) report that numerical calculations tend to become unstable when given initial points with extremely small or large norms \cite{toh1999}.
-It is desirable to provide initial points with the same scale as the solutions of problems $(P),(D)$, and a simple and empirically effective initial point used in SDPT3 is $y = 0$, and for each $p\in P$,
-
+While the algorithms described in this paper can start from infeasible initial points, the choice of initial points significantly affects both convergence speed and numerical stability.
+It is reported that numerical calculations tend to become unstable when given initial points with extremely small or large norms \cite{toh1999}.
+Therefore, it is desirable to provide initial points with scales comparable to the expected solutions of problems $(P)$ and $(D)$.
+SDPT3 employs the following empirically effective initialization: $y = 0$, and for each $p\in P$,
 \[
     x^p = \begin{cases}
         \zeta^p\, e^p, & \text{if } p \in P \setminus P^u,\\
@@ -513,13 +512,14 @@ It is desirable to provide initial points with the same scale as the solutions o
     \quad 
     z^p = \begin{cases}
         \eta^p\, e^p, & \text{if } p \in P \setminus P^u,\\
-        0, & \text{if } p\in P^u.
+        0, & \text{if } p\in P^u,
     \end{cases}
 \]
-is used as the initial point\footnote{If it is unknown whether problems $(P)$ and $(D)$ have feasible solutions or if they do not have any interior points, converting to a Homogeneous Self-Dual (HSD) model may be effective.
-For example, in the 3-parameter HSD model proposed by Wright \cite{Wright1997},
-auxiliary variables $(\tau, \kappa, \theta)$ are introduced to construct an extended problem, and applying interior-point methods to this can stabilize numerical calculations even when the feasibility is unknown.
-However, this method may increase the number of iterations when starting from infeasible initial points, so it is often used depending on the scale and characteristics of the problem \cite{toh1999}.}. Here,
+% is used as the initial point\footnote{If it is unknown whether problems $(P)$ and $(D)$ have feasible solutions or if they do not have any interior points, converting to a Homogeneous Self-Dual (HSD) model may be effective.
+% For example, in the 3-parameter HSD model proposed by Wright \cite{Wright1997},
+% auxiliary variables $(\tau, \kappa, \theta)$ are introduced to construct an extended problem, and applying interior-point methods to this can stabilize numerical calculations even when the feasibility is unknown.
+% However, this method may increase the number of iterations when starting from infeasible initial points, so it is often used depending on the scale and characteristics of the problem \cite{toh1999}.}. 
+where
 \begin{align*}
     \zeta^p 
     &= \max\Bigl\{
@@ -539,54 +539,52 @@ However, this method may increase the number of iterations when starting from in
       \Bigr\}.
 \end{align*}
 
-\medskip
+
+
 \subsection{Stopping Criteria}
 \label{sec:stopping_criteria}
-
-In this section, we present the stopping criteria for terminating the iterations of the interior-point method.
-SDPT3 terminates iterations when the predefined number of iterations or accuracy goals are met, or when infeasibility or numerical difficulties become apparent.
+In this section, we present the stopping criteria for terminating the iterations of SDPT3.
+The algorithm terminates iterations when the predefined number of iterations or accuracy goals are met, or when infeasibility or numerical difficulties become apparent.
 
 Specifically, we first define the following quantities to measure the dual gap and infeasibility:
 \[
-  \mathrm{gap}
+  \mathtt{gap}
   := \sum_{p\in P}
        \Bigl(\inprod{x^p}{z^p}_p + \bigl(\phi^p(x^p) - \phi^{p*}(z^p)\bigr)\Bigr),
 \]
 \[
-  \mathrm{relgap}
-  := \frac{\mathrm{gap}}
+  \mathtt{relgap}
+  := \frac{\mathtt{gap}}
            {\,1 \;+\;\Bigl|\sum_{p\in P}\inprod{c^p}{x^p}_p\Bigr|
                  \;+\;|\,b^T y|\,},
 \]
 \[
-  \mathrm{pinfeas}
+  \mathtt{pinfeas}
   := \frac{\|\,R_{prim}\|}{\,1 + \|b\|\,},
   \quad
-  \mathrm{dinfeas}
+  \mathtt{dinfeas}
   := \frac{\sum_{p\in P}\|\,R^p_{dual}\|}
            {\,1 + \sum_{p\in P}\|\,c^p\|\,}.
 \]
-Refer to equation \eqref{eq:NewtonKKT} for the definitions of $R_{prim}$ and $R_{dual}^p$.
-These represent the residuals of primal infeasibility and dual infeasibility, respectively.
-If $\mathrm{pinfeas} = 0$ and $\mathrm{dinfeas} = 0$,
+where $R_{prim}$ and $R_{dual}^p$ are defined in equation \eqref{eq:NewtonKKT}.
+These represent the primal and dual infeasibility residuals, respectively.
+Note that if $\mathtt{pinfeas} = 0$ and $\mathtt{dinfeas} = 0$,
 \[
   \sum_{p\in P}\inprod{x^p}{z^p}_p 
   \;=\;
   \sum_{p\in P}\inprod{x^p}{c^p - (\mathcal{A}^p)^T y}_p
   \;=\; \sum_{p\in P}\inprod{x^p}{c^p}_p \;-\; b^T y,
 \]
-holds, indicating that $\mathrm{gap}$ can be used as an indicator of the dual gap.
+holds, indicating that $\mathtt{gap}$ can be used as an indicator of the dual gap.
 
 Under these definitions, the iterations are terminated when any of the following conditions are met:
-
 \begin{enumerate}
-    \item The number of iterations reaches the upper limit (default is 100 iterations).
+    \item The number of iterations reaches the upper limit.
     \item 
       $\displaystyle
-      \max\{\,\mathrm{relgap},\;\mathrm{pinfeas},\;\mathrm{dinfeas}\}
+      \max\{\,\mathtt{relgap},\;\mathtt{pinfeas},\;\mathtt{dinfeas}\}
       < \varepsilon
-      $
-      and the desired accuracy $\varepsilon$ is achieved.
+      $, i.e., the desired accuracy is achieved.
     \item 
       $\displaystyle
         \frac{\,b^T y\,}
@@ -604,11 +602,10 @@ Under these definitions, the iterations are terminated when any of the following
     \item Numerical errors occur:
       \begin{itemize}
           \item Failure in Cholesky decomposition of $x^p$ or $z^p$.
-          \item Preconditioned iterative solver (such as SQMR) fails to converge.
-          \item $\mathrm{gap}$ diverges, indicating erratic behavior.
+          \item Preconditioned iterative solvers (SQMR or BiCGSTAB) fail to converge.
+          \item $\mathtt{gap}$ diverges, indicating erratic behavior.
       \end{itemize}
 \end{enumerate}
-
-Furthermore, it is practically important to heuristically terminate iterations when $\mathrm{relgap}$, $\mathrm{pinfeas}$, and $\mathrm{dinfeas}$ take relatively small values and there is little improvement in the last few iterations.
-In SDPT3 \cite{toh1999}, various termination conditions are implemented in \texttt{sqlpcheckconvg.m}, such as terminating when relative errors and update amounts fall below certain thresholds.
+In practice, it is also important to terminate iterations when $\mathtt{relgap}$, $\mathtt{pinfeas}$, and $\mathtt{dinfeas}$ take relatively small values and there is little improvement in the last few iterations.
+In SDPT3 \cite{toh1999}, various termination conditions are implemented in \texttt{sqlpcheckconvg.m}.
 
