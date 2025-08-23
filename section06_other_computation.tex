@@ -8,13 +8,20 @@ To ensure numerical stability of the Cholesky factorization, SDPT3 employs an ad
 where $D_M$ is a diagonal matrix formed from the diagonal elements of $M$, and parameters $\rho, \lambda$ decrease geometrically with iterations.\footnote{
   Intuitively, the diagonal term $\rho D_M$ improves conditioning while preserving solution accuracy, while $\lambda \mathcal{A}\mathcal{A}^T$ ensures numerical stability along the constraint directions.
 }
-When extreme ill-conditioning is detected (i.e., condition number is greater than $10^{14}$), diagonal elements below $10^{-8}$ may be increased to $1$, but only when very few such elements exist.
+When extreme ill-conditioning is detected (e.g., condition number is greater than $10^{14}$), diagonal elements below $10^{-8}$ may be increased to $1$, but only when very few such elements exist.
 
 These perturbations involve a delicate trade-off: while larger perturbations ensure numerical stability, they also distance the solution from the original problem, potentially compromising accuracy. SDPT3 implements a sophisticated perturbation strategy that carefully balances these competing concerns through iteration-dependent parameters and conditional application; for the complete algorithm, see the \texttt{linsysolve.m} function.
 
 
 \subsection{Handling free variables}
-If there exists any $p \in P$ such that $\nu^p = 0$, the problem (P)(D) can be transformed into the following 3-parameter Homogeneous self-dual (HSD) model \cite{Wright1997}:
+If $\nu^p = 0$ for all $p \in P$, the problem (P)(D) can be transformed into the following 3-parameter Homogeneous self-dual (HSD) model \cite{Wright1997}.
+Given an initial point 
+\[
+(x_0, y_0, z_0, \tau_0, \kappa_0, \theta_0) \in 
+  \operatorname{int}(\mathbb{K}) \times \mathbb{R}^m \times \operatorname{int}(\mathbb{K})
+  \times \mathbb{R}^1_+ \times \mathbb{R}^1_+ \times \mathbb{R}^1_+,
+\]
+the HSD model is formulated as:
 \[
   \begin{array}{cl}
    \min_{x,y,z,\tau,\kappa,\theta} & \bar{\alpha}\,\theta \\[3pt]
@@ -29,51 +36,52 @@ If there exists any $p \in P$ such that $\nu^p = 0$, the problem (P)(D) can be t
    \;+\;
      \begin{pmatrix} 0 \\ z \\ \kappa \\ 0 \end{pmatrix}
    =
-     \begin{pmatrix} 0 \\ 0 \\ 0 \\ \bar{\alpha} \end{pmatrix}.
+     \begin{pmatrix} 0 \\ 0 \\ 0 \\ \bar{\alpha} \end{pmatrix}
   \end{array}
 \]
-Given $(x_0,y_0,z_0,\tau_0,\kappa_0,\theta_0)\in 
-  \operatorname{int}(\mathbb{K}) \times \mathbb{R}^m \times \operatorname{int}(\mathbb{K})
-  \times \mathbb{R}^1_+ \times \mathbb{R}^1_+ \times \mathbb{R}^1_+$
-we define
-\begin{gather*}
-    \bar{b} = \frac{1}{\theta_0}(b\tau_0 - \mathcal{A}x_0) \\
-    \bar{c} = \frac{1}{\theta_0}(c\tau_0 - \mathcal{A}^T y_0 - z_0) \\
-    \bar{g} = \frac{1}{\theta_0}(\inprod{c}{x_0} - b^Ty_0 + \kappa_0) \\
-    \bar{\alpha} = \frac{1}{\theta_0} (\inprod{x_0}{z_0} + \tau_0 \kappa_0)
-\end{gather*}
-According to Toh et al.~\cite{toh1999}, if the feasible region of (P)(D) is non-empty but does not contain an interior point, converting to the HSD model and then applying the interior-point method results in longer computation times but yields better accuracy.
-This approach is implemented in SDPT3.  
-Handling the HSD model requires slight modifications to the algorithm, detailed in \cite{toh1999}.
+where the parameters are defined as:
+\begin{align*}
+    \bar{b} &= \frac{1}{\theta_0}(b\tau_0 - \mathcal{A}x_0) \\
+    \bar{c} &= \frac{1}{\theta_0}(c\tau_0 - \mathcal{A}^T y_0 - z_0) \\
+    \bar{g} &= \frac{1}{\theta_0}(\inprod{c}{x_0} - b^Ty_0 + \kappa_0) \\
+    \bar{\alpha} &= \frac{1}{\theta_0} (\inprod{x_0}{z_0} + \tau_0 \kappa_0)
+\end{align*}
+
+According to Toh et al.~\cite{toh1999}, if the feasible region of (P)(D) is non-empty but lacks an interior point, converting to the HSD model yields superior accuracy despite increased computational cost.
+This is particularly important when unrestricted blocks exist (i.e., $\exists p\in P$ such that $\mathbb{K}^p=\mathbb{R}^{n_p}$), as the dual cone $(\mathbb{K}^p)^*=\{0\}$ implies that there is no interior point in the dual feasible region.
+
+SDPT3 implements this HSD transformation when appropriate.
+The standard algorithm cannot be directly applied to the HSD model and requires modifications, which are detailed in \cite{toh1999}.
 
 \medskip
 
-On the other hand, if there exists any $p \in P$ such that $\nu^p \neq 0$, unfortunately, (P)(D) cannot be converted to the HSD model.
-As seen from \eqref{eq:Schur_complement_Mat}, if there exists any $p \in P$ such that $\mathbb{K}^p = \mathbb{R}^{n_p}$, the presence of $A^u$ increases the size of the equation to be solved, making it computationally expensive.
-Therefore, SDPT3 eliminates the free variable $x^p \in \mathbb{R}^{n_p}$ by transforming it into non-negative variables $(x^p_+,\,x^p_-)\in\mathbb{R}^{2n_p}_+$:
+When $\nu^p \neq 0$ for some $p \in P$, the problem (P)(D) cannot be converted to the HSD model.
+As seen from \eqref{eq:Schur_complement_Mat}, unrestricted blocks (i.e., $\mathbb{K}^p = \mathbb{R}^{n_p}$) require solving augumented systems involving $A^u$, which increases computational cost.
+To avoid this overhead, SDPT3 eliminates free variables $x^p \in \mathbb{R}^{n_p}$ by splitting them into non-negative components:
 \[
-   x^p = x^p_+ \;-\; x^p_- 
+   x^p = x^p_+ - x^p_-, \quad \text{where } (x^p_+, x^p_-) \in \mathbb{R}^{2n_p}_+
 \]
 
-The downside of this method is numerical instability.
-In practice, $x^p_+$ and $x^p_-$ tend to become very large as iterations progress, while the corresponding dual variables $z^p_+, z^p_-$ tend to become very small.
-This results in $\operatorname{diag}(x^p_\pm)\,\operatorname{diag}(z^p_\pm)$ becoming extremely ill-conditioned.
-Fortunately, heuristic update formulas can be applied to suppress the increase in $x^p_+$ and $x^p_-$ values, mitigating numerical instability:
+This transformation, while computationally efficient, introduces numerical challenges.
+As iterations progress, both $x^p_+$ and $x^p_-$ typically grow large while their dual counterparts $z^p_+$ and $z^p_-$ become small, causing the complementarity products $\operatorname{diag}(x^p_\pm) \operatorname{diag}(z^p_\pm)$ to become severely ill-conditioned.
+
+To mitigate these issues, SDPT3 employs heuristic stabilization techniques.
+At each iteration, the primal variables are recentered:
 \[
-   x^p_+ \;\leftarrow\; x^p_+ - 0.8\,\min(x^p_+,\,x^p_-),
-   \quad
-   x^p_- \;\leftarrow\; x^p_- - 0.8\,\min(x^p_+,\,x^p_-).
+   x^p_+ \leftarrow x^p_+ - 0.8 \min(x^p_+, x^p_-), \quad
+   x^p_- \leftarrow x^p_- - 0.8 \min(x^p_+, x^p_-)
 \]
-Additionally, adding a positive perturbation of the same scale as $\mu$ to $z^p_+, z^p_-$ at each iteration prevents them from becoming excessively small.
+while the dual variables are perturbed by adding $\alpha \mu e^p$, where $e^p$ is the identity element defined in Section 3.1 and $\alpha = 0.1$ is an adaptively defined small constant, to prevent them from approaching zero too rapidly.
 
 \medskip
 
-Even for blocks $p$ where $\mathbb{K}^p=\mathbb{R}^{n_p}_+$, if there exist pairs of non-negative variables that can be transformed into free variables (e.g., if there exist pairs of variables $x^p_i, x^p_j$ such that $(a^p_k)_i = -(a^p_k)_j$ for all $k=1,2,\ldots,m$, $(c^p)_i = -(c^p)_j$, $\nu^p = 0$), similar numerical instability occurs. Therefore, it is necessary to detect such pairs of variables and apply the heuristic update mentioned above.
+Similar numerical issues arise even in linear blocks ($\mathbb{K}^p=\mathbb{R}^{n_p}_+$) when pairs of variables effectively represent a single free variable.
+Specifically, if variables $x^p_i$ and $x^p_j$ satisfy $(a^p_k)_i = -(a^p_k)_j$ for all constraints $k=1,\ldots,m$ and $(c^p)_i = -(c^p)_j$ with $\nu^p = 0$, they exhibit the same instability pattern.
+SDPT3 detects such implicit free variables and applies the same stabilization techniques described above.
+
 
 \subsection{Preprocessing for model transformation}
-
 \subsubsection{Complex input}
-
 In applications such as control engineering, optimization problems on complex semidefinite cones may arise, but they can be reduced to problems on real semidefinite cones.
 Define the following:
 \begin{itemize}
