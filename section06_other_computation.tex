@@ -81,37 +81,88 @@ SDPT3 detects such implicit free variables and applies the same stabilization te
 
 
 \subsection{Preprocessing for model transformation}
-\subsubsection{Complex input}
+\subsubsection{Transforming complex semidefinite variables to real}
 In applications such as control engineering, optimization problems on complex semidefinite cones may arise, but they can be reduced to problems on real semidefinite cones.
+
 Define the following:
 \begin{itemize}
     \item Complex matrix space $\mathbb{C}^{m\times n}$
-    \item Set of Hermitian matrices $\mathbb{H}^n=\{a \in \mathbb{C}^{n\times n} \mid a = a^H\}$ where $a^H$ denotes the conjugate transpose of $a$.
-    \item Complex positive semidefinite symmetric matrix cone $\mathbb{H}^n_+=\{a \in \mathbb{H}^n \mid x^T a x \geq 0 ~(\forall x\in \mathbb{C}^n)\}$
-    \item $\bar{\mathbb{S}}^{2n}_+ = \{(\begin{smallmatrix}
-    A & B\\
-    C & D
-\end{smallmatrix}) \in \mathbb{S}^{2n}_+ \mid A=D\in \mathbb{S}^n, ~ B=-B^T=C=-C^T\}$
+    \item Set of Hermitian matrices $\mathbb{H}^n=\{a \in \mathbb{C}^{n\times n} \mid a = a^H\}$ where $a^H$ denotes the conjugate transpose
+    \item Complex positive semidefinite cone $\mathbb{H}^n_+=\{a \in \mathbb{H}^n \mid z^H a z \geq 0 ~(\forall z\in \mathbb{C}^n)\}$
+    \item $\bar{\mathbb{S}}^{2n}_+ = \left\{\left(\begin{smallmatrix}
+      R & -S\\
+      S & R
+  \end{smallmatrix} \right) \in \mathbb{S}^{2n}_+ \;\middle|\; R\in \mathbb{S}^n, ~ S^T=-S\right\}.$
 \end{itemize}
-It is known that $\mathbb{H}^n_+$ and $\bar{\mathbb{S}}^{2n}_+$ are algebraically isomorphic.
-Define the mapping $\Gamma: \mathbb{H}^n\to \mathbb{S}^{2n}$ as
+Any Hermitian matrix $a \in \mathbb{H}^n$ can be uniquely decomposed as $a = R + iS$ where $R = \operatorname{real}(a) \in \mathbb{S}^n$ is the real part which is a real symmetric matrix and $S = \operatorname{imag}(a) \in \mathbb{R}^{n\times n}$ is the imaginary part which is a real skew-symmetric matrix, i.e., $S^T = -S$.
+
+We define the real embedding $\Gamma: \mathbb{H}^n\to \mathbb{S}^{2n}$ as
 \[
-  \Gamma(x)
-  := \begin{pmatrix}
-       \operatorname{real}(x) & -\operatorname{imag}(x) \\
-       \operatorname{imag}(x) & \operatorname{real}(x)
-     \end{pmatrix}
+  \Gamma(a) 
+  = \begin{pmatrix}
+       \operatorname{real}(a) & -\operatorname{imag}(a) \\
+       \operatorname{imag}(a) & \operatorname{real}(a)
+     \end{pmatrix}.
 \]
-For example,
+Then the mapping $\Gamma$ establishes a cone isomorphism between $\mathbb{H}^n_+$ and $\bar{\mathbb{S}}^{2n}_+$:
 \[
-  x\in \mathbb{H}^n_+
+  a\in \mathbb{H}^n_+
    \;\;\Longleftrightarrow\;\;
-  \Gamma(x)\in \mathbb{S}^{2n}_+
+  \Gamma(a)\in \bar{\mathbb{S}}^{2n}_+.
 \]
-Thus, by transforming variables using $\Gamma(x)= y \in \bar{\mathbb{S}}^{2n_p}_+$, problems on complex semidefinite cones can be reduced to problems on real semidefinite cones.
+This equivalence follows from the identity: for any $u,v\in\mathbb{R}^n$ and $z=u+iv\in\mathbb{C}^n$,
+\[
+  z^H a z = 
+  \begin{pmatrix}u\\ v\end{pmatrix}^T \Gamma(a) \begin{pmatrix}u\\ v\end{pmatrix}.
+\]
+The left-hand side is non-negative for all $z \in \mathbb{C}^n$ if and only if the right-hand side is non-negative for all $(u,v) \in \mathbb{R}^{2n}$.
 
-\subsubsection{Detect diagonal block of $\mathbb{K}^p=\mathbb{S}^{n_p}_+$}
+Thus, by transforming complex variables $x \in \mathbb{H}^{n_p}_+$ to real variables $\bar{x} = \Gamma(x) \in \bar{\mathbb{S}}^{2n_p}_+$, problems on complex semidefinite cones can be reduced to problems on real semidefinite cones.
 
+\begin{example}
+\begin{equation*}
+    \left|
+    \begin{array}{cl}
+        \min & \inprod{\begin{pmatrix}
+            2 & 1-i \\
+            1+i & 3
+        \end{pmatrix}}{x} \\
+        s.t. 
+        & \inprod{\begin{pmatrix}
+            1 & 0 \\ 
+            0 & 1
+        \end{pmatrix}}{x} = 4 \\
+        & x\in \mathbb{H}^2_+ 
+    \end{array}
+    \right.
+    \Longleftrightarrow
+    \left|
+    \begin{array}{cl}
+        \min & \inprod{\begin{pmatrix}
+            2 & 1 & 0 & 1 \\
+            1 & 3 & -1 & 0 \\
+            0 & -1 & 2 & 1 \\
+            1 & 0 & 1 & 3
+        \end{pmatrix}}{\bar{x}} \\
+        s.t. 
+        & \inprod{\begin{pmatrix}
+            1 & 0 & 0 & 0 \\ 
+            0 & 1 & 0 & 0 \\ 
+            0 & 0 & 1 & 0 \\ 
+            0 & 0 & 0 & 1
+        \end{pmatrix}}{\bar{x}} = 4 \\
+        & \bar{x}\in \bar{\mathbb{S}}^4_+ = \left\{\begin{pmatrix}
+            R & -S\\
+            S & R
+        \end{pmatrix} \in \mathbb{S}^4_+ \;\middle|\; R\in \mathbb{S}^2, ~ S^T=-S\right\}
+    \end{array}
+    \right.
+\end{equation*}
+\end{example}
+
+
+
+\subsubsection{Converting diagonal blocks to linear variables}
 The condition $x\in \mathbb{S}^1_+$ is equivalent to $x\in \mathbb{R}^1_+$.
 In this case, treating $x$ as a simple non-negative real variable improves the computational efficiency of the interior-point method.
 Furthermore, if there are diagonal blocks within the variable matrix of $\mathbb{S}^{n_p}_+$, converting them to non-negative real variables yields similar computational efficiency improvements.
@@ -158,7 +209,7 @@ Here, $\bar{x}$ is the matrix obtained by removing the $i$-th row and column fro
 \end{example}
 Indeed, in SDPLIB's xxx, there are many such diagonal blocks.
 
-\subsubsection{Artificial linear block}
+\subsubsection{Adding artificial linear blocks for feasibility}
 
 The interior-point method algorithm introduced in this paper assumes $m \geq 1$ and $\exists p\in P ~ \text{s.t.} ~ \nu^p=0$ (mainly for \eqref{eq:NewtonKKT} and \eqref{eq:mu}).
 
@@ -176,7 +227,7 @@ Specifically, set new parameters as follows:
     \item $\nu^{p_{\max} + 1} = 0$
 \end{itemize}
 
-\subsubsection{Reordering Matrix Variables}
+\subsubsection{Reordering matrices for Cholesky efficiency}
 To determine the positive definiteness of variables $x^p, z^p$, checking whether Cholesky decomposition succeeds is numerically stable.
 Since the interior-point method performs this Cholesky decomposition at each iteration, minimizing fill-in is important.
 SDPT3 reorders matrix variables to minimize fill-in during Cholesky decomposition.
