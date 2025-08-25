@@ -163,15 +163,15 @@ Thus, by transforming complex variables $x \in \mathbb{H}^{n_p}_+$ to real varia
 
 
 \subsubsection{Converting diagonal blocks to linear variables}
-The condition $x\in \mathbb{S}^1_+$ is equivalent to $x\in \mathbb{R}^1_+$.
-In this case, treating $x$ as a simple non-negative real variable improves the computational efficiency of the interior-point method.
-Furthermore, if there are diagonal blocks within the variable matrix of $\mathbb{S}^{n_p}_+$, converting them to non-negative real variables yields similar computational efficiency improvements.
+The condition $x\in \mathbb{S}^1_+$ is equivalent to $x\in \mathbb{R}^1_+$, since a $1\times 1$ positive semidefinite matrix is simply a non-negative scalar.
+In this case, treating $x$ as a non-negative real variable improves the computational efficiency of the interior-point method.
+Furthermore, if the variable matrix in $\mathbb{S}^{n_p}_+$ contains isolated diagonal elements (i.e., elements that do not interact with off-diagonal entries in the constraints), converting them to non-negative real variables yields similar computational efficiency improvements.
 
-Specifically, for an integer $i$,
-if $(c^p)_{ij}=(c^p)_{ji}=0$ and $(a^p_k)_{ij}=(a^p_k)_{ji}=0$ 
-($\forall j\neq i,\,\forall k$),
-transform $x\in \mathbb{S}^{n_p}_+$ to $(\bar{x},\,\hat{x})\in \mathbb{S}^{n_p-1}_+\times \mathbb{R}^1_+$.
-Here, $\bar{x}$ is the matrix obtained by removing the $i$-th row and column from $x$, and $x_{ij}= x_{ji}=0$ ($\forall j\neq i$).
+Specifically, for an integer $i$, if the $i$-th diagonal element is isolated, i.e.,
+$(c^p)_{ij}=(c^p)_{ji}=0$ and $(a^p_k)_{ij}=(a^p_k)_{ji}=0$ for all $j\neq i$ and all $k$,
+SDPT3 transforms $x\in \mathbb{S}^{n_p}_+$ to $(\bar{x},\,\hat{x})\in \mathbb{S}^{n_p-1}_+\times \mathbb{R}^1_+$,
+where $\bar{x}$ is the $(n_p-1)\times(n_p-1)$ matrix obtained by removing the $i$-th row and column from $x$,
+and $\hat{x} = x_{ii} \geq 0$ represents the isolated diagonal element.
 
 \begin{example}
 \begin{equation*}
@@ -181,14 +181,14 @@ Here, $\bar{x}$ is the matrix obtained by removing the $i$-th row and column fro
             3 & 0 & 1 \\
             0 & 5 & 0 \\
             1 & 0 & 2
-        \end{pmatrix}}{X} \\
+        \end{pmatrix}}{x} \\
         s.t. 
         & \inprod{\begin{pmatrix}
             1 & 0 & 0 \\ 
             0 & 2 & 0 \\ 
             0 & 0 & 3
-        \end{pmatrix}}{X} = 1 \\
-        & X\in \mathbb{S}^3_+ 
+        \end{pmatrix}}{x} = 1 \\
+        & x\in \mathbb{S}^3_+ 
     \end{array}
     \right.
     \Longleftrightarrow
@@ -197,20 +197,20 @@ Here, $\bar{x}$ is the matrix obtained by removing the $i$-th row and column fro
         \min & \inprod{\begin{pmatrix}
             3 & 1 \\
             1 & 2
-        \end{pmatrix}}{\bar{X}} + 5\hat{x} \\
+        \end{pmatrix}}{\bar{x}} + 5\hat{x} \\
         s.t. 
         & \inprod{\begin{pmatrix}
             1 & 0 \\ 0 & 3
-        \end{pmatrix}}{\bar{X}} + 2\hat{x} = 1 \\
-        & \bar{X}\in \mathbb{S}^2_+, \quad \hat{x} \in \mathbb{R}^1_+
+        \end{pmatrix}}{\bar{x}} + 2\hat{x} = 1 \\
+        & \bar{x}\in \mathbb{S}^2_+, \quad \hat{x} \in \mathbb{R}^1_+
     \end{array}
     \right.
 \end{equation*}
 \end{example}
-Indeed, in SDPLIB's xxx, there are many such diagonal blocks.
+Indeed, for example, the instance \texttt{qpG11} from SDPLIB contains many such diagonal blocks that benefit from this transformation technique.
+
 
 \subsubsection{Adding artificial linear blocks for feasibility}
-
 The interior-point method algorithm introduced in this paper assumes $m \geq 1$ and $\exists p\in P ~ \text{s.t.} ~ \nu^p=0$ (mainly for \eqref{eq:NewtonKKT} and \eqref{eq:mu}).
 
 If these conditions are not met, adding one redundant non-negative variable $x^{p_{\max} + 1}$ and one constraint
