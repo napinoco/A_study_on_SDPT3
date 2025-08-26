@@ -266,25 +266,23 @@ which reduces the bandwidth from 2 to 1.
 
 
 \subsubsection{Utilizing matrix symmetry}
-In blocks where $\mathbb{K}^p=\mathbb{S}_+^p$, leveraging the symmetry of coefficient matrices can reduce memory usage and computation time for matrix inner products.
-
-Given a real symmetric matrix $A\in \mathbb{S}^n$, define $\operatorname{svec}: \mathbb{S}^n \rightarrow \mathbb{R}^{n(n+1)/2}$ for $i\leq j$ as follows:
-\[ \operatorname{svec}(A)= (a_1^T, a_2^T, \ldots a_n^T)^T \]
-where
-\[ a_j = (f_{j,j} A_{j,j}, ~ f_{j+1,j}A_{j+1,j}, ~ \ldots ~ , ~ f_{n,j} A_{n,j})^T \in \mathbb{R}^{n-j+1} \]
-\[ f_{ij}= \begin{cases} 1 & \text{if} ~ i=j \\ \sqrt{2} & \text{otherwise} \end{cases}\]
-
+In blocks where $\mathbb{K}^p=\mathbb{S}_+^p$, exploiting the symmetry of matrices reduces memory usage and computation time for inner products.
+Given a real symmetric matrix $a\in \mathbb{S}^n$, the symmetric vectorization operator $\operatorname{svec}: \mathbb{S}^n \rightarrow \mathbb{R}^{n(n+1)/2}$ extracts the lower triangular part column by column, scaling off-diagonal elements by $\sqrt{2}$ to preserve inner products.
+More precisely, it concatenates the scaled lower triangular entries column by column:
+\[ \operatorname{svec}(a) = (a_{11}, \sqrt{2}a_{21}, \ldots, \sqrt{2}a_{n1}, \quad a_{22}, \sqrt{2}a_{32}, \ldots, \sqrt{2}a_{n2}, \quad \ldots, \quad a_{nn})^T \]
 \begin{example}
-\[A = \begin{pmatrix}
+\[a = \begin{pmatrix}
     1 & 2 & 3\\
     2 & 4 & 5\\
     3 & 5 & 6
-\end{pmatrix} \rightarrow \operatorname{svec}(A) = (1, ~ 2\sqrt{2}, ~ 3\sqrt{2}, ~ 4, ~ 5\sqrt{2}, ~ 6)^T\]
+\end{pmatrix} \rightarrow \operatorname{svec}(a) = (1, ~ 2\sqrt{2}, ~ 3\sqrt{2}, ~ 4, ~ 5\sqrt{2}, ~ 6)^T\]
 \end{example}
 
-The following equality holds:
-\[\inprod{A}{A} = \operatorname{svec}(A)^T \operatorname{svec}(A).\]
-Thus, by storing $\operatorname{svec}(A)$ instead of $A$, memory usage and computation time for inner products can be approximately halved.
-SDPT3 adopts the $\operatorname{svec}$ format for storing coefficient matrices $a^p_k$ (while $c^p$, $x^p$, and $z^p$ are stored in matrix form).
+\medskip
+
+The following equality holds for any symmetric matrices $a, b \in \mathbb{S}^n$:
+\[\inprod{a}{b} = \operatorname{svec}(a)^T \operatorname{svec}(b).\]
+Therefore, storing $\operatorname{svec}(a)$ instead of $a$ halves memory usage while making inner product computations more efficient.
+SDPT3 stores coefficient matrices $a^p_k$ in the $\operatorname{svec}$ format for efficiency, while maintaining $c^p$, $x^p$, and $z^p$ in matrix form for algorithmic operations.
 
 
