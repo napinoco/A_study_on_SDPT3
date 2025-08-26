@@ -229,15 +229,20 @@ Note that when $m = 0$ (no existing constraints), this creates the first constra
 
 
 \subsubsection{Reordering matrices for Cholesky efficiency}
-To determine the positive definiteness of variables $x^p, z^p$, checking whether Cholesky decomposition succeeds is numerically stable.
-Since the interior-point method performs this Cholesky decomposition at each iteration, minimizing fill-in is important.
+To verify the positive definiteness of variables $x^p, z^p$, SDPT3 uses Cholesky decomposition, which provides a numerically stable test.
+Since the interior-point method performs Cholesky decomposition at each iteration, minimizing fill-in is crucial for computational efficiency.
 SDPT3 reorders matrix variables to minimize fill-in during Cholesky decomposition.
-Specifically, define
+To identify the sparsity pattern, SDPT3 first constructs the aggregate matrix
 \[
   t^p = |c^p| + \sum_{k=1}^m |a^p_k|
 \]
-and apply the Reverse Cuthill--Mckee Algorithm to obtain the permutation $\sigma$.
-Finally, transform variables as $(\bar{x}^p)_{ij} = (x^p)_{\sigma(i)\sigma(j)}$.
+which represents the combined sparsity structure of all coefficient matrices.
+The Reverse Cuthill-McKee algorithm is then applied to obtain the permutation $\sigma$ that reduces the bandwidth (the maximum distance of non-zero elements from the diagonal).
+Since reducing bandwidth typically reduces fill-in during Cholesky decomposition, this reordering improves computational efficiency.\footnote{
+  While the benefits are problem-dependent, this reordering often improves efficiency in practice. 
+  The Newton system matrix $M = \mathcal{A}\mathcal{H}\mathcal{A}^T$ tends to inherit sparsity from the coefficient matrices $\mathcal{A}$, and iterates $x^p, z^p$ often reflect the coefficient structure $(a_k^p)$, particularly near optimality. 
+  The reduced bandwidth typically leads to less fill-in during Cholesky decompositions throughout the algorithm.}
+The variables are reordered according to $(\bar{x}^p)_{ij} = (x^p)_{\sigma(i)\sigma(j)}$.
 
 \begin{example}
 \[
@@ -246,7 +251,8 @@ Finally, transform variables as $(\bar{x}^p)_{ij} = (x^p)_{\sigma(i)\sigma(j)}$.
         0 & 5 & 0 \\\
         1 & 0 & 2
     \end{pmatrix}
-\] Applying the Reverse Cuthill-Mckee Algorithm yields $\sigma(1)=3, ~ \sigma(2)=1, ~ \sigma(3)=2$.
+\]
+Applying the Reverse Cuthill-McKee algorithm yields $\sigma(1)=3, ~ \sigma(2)=1, ~ \sigma(3)=2$.
 Transforming variables using this permutation results in $\bar{t}^p$:
 \[
     \bar{t}^p = \begin{pmatrix}
@@ -255,8 +261,9 @@ Transforming variables using this permutation results in $\bar{t}^p$:
         0 & 0 & 5
     \end{pmatrix}
 \]
-which indeed has a smaller bandwidth.
+which reduces the bandwidth from 2 to 1.
 \end{example}
+
 
 \subsubsection{Utilizing matrix symmetry}
 In blocks where $\mathbb{K}^p=\mathbb{S}_+^p$, leveraging the symmetry of coefficient matrices can reduce memory usage and computation time for matrix inner products.
