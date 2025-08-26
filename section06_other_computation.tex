@@ -210,22 +210,23 @@ and $\hat{x} = x_{ii} \geq 0$ represents the isolated diagonal element.
 Indeed, for example, the instance \texttt{qpG11} from SDPLIB contains many such diagonal blocks that benefit from this transformation technique.
 
 
-\subsubsection{Adding artificial linear blocks for feasibility}
-The interior-point method algorithm introduced in this paper assumes $m \geq 1$ and $\exists p\in P ~ \text{s.t.} ~ \nu^p=0$ (mainly for \eqref{eq:NewtonKKT} and \eqref{eq:mu}).
-
-If these conditions are not met, adding one redundant non-negative variable $x^{p_{\max} + 1}$ and one constraint
+\subsubsection{Ensuring algorithmic assumptions through variable augmentation}
+The interior-point method algorithm introduced in this paper requires $m \geq 1$ and $\exists p\in P ~ \text{s.t.} ~ \nu^p=0$ (mainly for \eqref{eq:NewtonKKT} and \eqref{eq:mu}).
+When these prerequisites are not satisfied, SDPT3 adds one artificial non-negative variable $x^{p_{\max} + 1}$ and the corresponding constraint
 \[
   -\sum_{p\in P} \inprod{e^p}{x^p}_p + x^{p_{\max} + 1} = 0
 \]
-can satisfy the assumptions.
-Specifically, set new parameters as follows:
+to ensure the algorithmic assumptions hold.
+Specifically, this augmentation introduces the following additional problem parameters:
 \begin{itemize}
     \item $\mathbb{K}^{p_{\max} + 1} = \mathbb{R}^1_+$
-    \item $a^{p}_1=e^p ~ (p \in P)$, $a^{p_{\max} + 1}_1 = 1$
-    \item $b = 0$
+    \item $a^{p}_{m+1}=e^p \;\; (p \in P) \;\;$ and $\;\; a^{p_{\max} + 1}_{m+1} = 1$
+    \item $b_{m+1} = 0$
     \item $c^{p_{\max} +1}=0$
     \item $\nu^{p_{\max} + 1} = 0$
 \end{itemize}
+Note that when $m = 0$ (no existing constraints), this creates the first constraint with $b_1 = 0$. When $m \geq 1$, this extends the existing constraint vector $b$ by appending a new element $b_{m+1} = 0$.
+
 
 \subsubsection{Reordering matrices for Cholesky efficiency}
 To determine the positive definiteness of variables $x^p, z^p$, checking whether Cholesky decomposition succeeds is numerically stable.
