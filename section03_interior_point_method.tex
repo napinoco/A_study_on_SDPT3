@@ -21,11 +21,11 @@ as follows:
   :=
   \sum_{k=1}^m a^p_k y_k.
 \]
-Then, the primal problem $(P)$ and the dual problem $(D)$ can be written as follows:
+Then, the primal problem (P) and the dual problem (D) can be written as follows:
 \[
   \everymath{\displaystyle}
   \renewcommand{\arraystretch}{2.0}
-  (P)~
+  \text{(P)}~
   \left|
   \begin{array}{cl}
       \min_{x} & \displaystyle
@@ -36,7 +36,7 @@ Then, the primal problem $(P)$ and the dual problem $(D)$ can be written as foll
   \end{array}
   \right.
   \qquad
-  (D)~
+  \text{(D)}~
   \left|
   \begin{array}{cl}
       \max_{y,z} & \displaystyle
@@ -501,7 +501,7 @@ For $\mathbb{K}^p=\mathbb{R}^{n_p}$, since $(\mathbb{K}^p)^*=\{0\}^{n_p}$, we ha
 \label{sec:initial_points}
 While the algorithms described in this paper can start from infeasible initial points, the choice of initial points significantly affects both convergence speed and numerical stability.
 It is reported that numerical calculations tend to become unstable when given initial points with extremely small or large norms \cite{toh1999}.
-Therefore, it is desirable to provide initial points with scales comparable to the expected solutions of problems $(P)$ and $(D)$.
+Therefore, it is desirable to provide initial points with scales comparable to the expected solutions of problems (P) and (D).
 SDPT3 employs the following empirically effective initialization: $y = 0$, and for each $p\in P$,
 \[
     x^p = \begin{cases}
@@ -515,7 +515,7 @@ SDPT3 employs the following empirically effective initialization: $y = 0$, and f
         0, & \text{if } p\in P^u,
     \end{cases}
 \]
-% is used as the initial point\footnote{If it is unknown whether problems $(P)$ and $(D)$ have feasible solutions or if they do not have any interior points, converting to a Homogeneous Self-Dual (HSD) model may be effective.
+% is used as the initial point\footnote{If it is unknown whether problems (P) and (D) have feasible solutions or if they do not have any interior points, converting to a Homogeneous Self-Dual (HSD) model may be effective.
 % For example, in the 3-parameter HSD model proposed by Wright \cite{Wright1997},
 % auxiliary variables $(\tau, \kappa, \theta)$ are introduced to construct an extended problem, and applying interior-point methods to this can stabilize numerical calculations even when the feasibility is unknown.
 % However, this method may increase the number of iterations when starting from infeasible initial points, so it is often used depending on the scale and characteristics of the problem \cite{toh1999}.}. 

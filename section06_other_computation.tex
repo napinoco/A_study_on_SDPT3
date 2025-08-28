@@ -14,7 +14,7 @@ These perturbations involve a delicate trade-off: while larger perturbations ens
 
 
 \subsection{Handling free variables}
-If $\nu^p = 0$ for all $p \in P$, the problem (P)(D) can be transformed into the following 3-parameter Homogeneous self-dual (HSD) model \cite{Wright1997}.
+If $\nu^p = 0$ for all $p \in P$, the problem (P) and (D) can be transformed into the following 3-parameter Homogeneous self-dual (HSD) model \cite{Wright1997}.
 Given an initial point 
 \[
 (x_0, y_0, z_0, \tau_0, \kappa_0, \theta_0) \in 
@@ -47,7 +47,7 @@ where the parameters are defined as:
     \bar{\alpha} &= \frac{1}{\theta_0} (\inprod{x_0}{z_0} + \tau_0 \kappa_0)
 \end{align*}
 
-According to Toh et al.~\cite{toh1999}, if the feasible region of (P)(D) is non-empty but lacks an interior point, converting to the HSD model yields superior accuracy despite increased computational cost.
+According to Toh et al.~\cite{toh1999}, if the feasible region of (P) and (D) is non-empty but lacks an interior point, converting to the HSD model yields superior accuracy despite increased computational cost.
 This is particularly important when unrestricted blocks exist (i.e., $\exists p\in P$ such that $\mathbb{K}^p=\mathbb{R}^{n_p}$), as the dual cone $(\mathbb{K}^p)^*=\{0\}$ implies that there is no interior point in the dual feasible region.
 
 SDPT3 implements this HSD transformation when appropriate.
@@ -55,7 +55,7 @@ The standard algorithm cannot be directly applied to the HSD model and requires 
 
 \medskip
 
-When $\nu^p \neq 0$ for some $p \in P$, the problem (P)(D) cannot be converted to the HSD model.
+When $\nu^p \neq 0$ for some $p \in P$, the problem (P) and (D) cannot be converted to the HSD model.
 As seen from \eqref{eq:Schur_complement_Mat}, unrestricted blocks (i.e., $\mathbb{K}^p = \mathbb{R}^{n_p}$) require solving augumented systems involving $A^u$, which increases computational cost.
 To avoid this overhead, SDPT3 eliminates free variables $x^p \in \mathbb{R}^{n_p}$ by splitting them into non-negative components:
 \[
