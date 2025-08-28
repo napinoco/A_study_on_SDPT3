@@ -1,4 +1,4 @@
-\section{Other computation techniques}
+\section{Other computation techniques}\label{sec:other_computation}
 \subsection{Perturbation of \boldmath $M$ }
 In practice, $M$ may become numerically ill-conditioned due to several factors: roundoff errors, rank-deficient constraint matrices, and the inherent nature of interior-point methods where approaching optimality ($\mu \to 0$) leads to increasingly poor conditioning as complementarity gaps narrow.
 To ensure numerical stability of the Cholesky factorization, SDPT3 employs an adaptive perturbation strategy:

@@ -1,32 +1,56 @@
 \section{Summary}
-The pseudo-code for the primal-dual path-following infeasible-interior-point method incorporating various techniques discussed so far is as follows:
-TBA
-% \begin{algorithm}
-% Primal-dual path-following infeasible-interior-point method
-% \begin{algorithmic}[1]
-% \REQUIRE $\sigma\in[0,1)$
-% \STATE Initialize $x,y,z$
-% \STATE xxxxxxxxxxxxxx
-% \FOR{it in $1,2,\ldots,\text{maxit}$}
-%     \STATE Compute the coefficient matrices $M$, $A^u$, $U$, $-D^{-1}$ of equation \eqref{eq:Schur_complement_Mat_aug}
-%     \STATE Compute the Cholesky decomposition of $M$ and the LU decomposition of $S$
-%     \STATE Compute $\mathcal{A}\mathcal{H}R_{dual}$ and $R^u_{dual}$
-%     % \STATE Compute sigma \& mu
-%     \STATE Compute $R_{comp}$
-%     \STATE Compute $\mathcal{A}\mathcal{E}^{-1}R_{comp}$
-%     \STATE Compute $h = R_{prim} + \mathcal{A}\mathcal{E}^{-1}R_{comp} - \mathcal{A}\mathcal{H}R_{dual}$
-%     \STATE Solve equation \eqref{eq:Schur_complement_Mat_aug} to obtain $\delta y, \delta x^u$
-%     \STATE Obtain $\delta x, \delta z$ from equation \eqref{eq:sol_x_z}
-%     \STATE Compute $\mu$ and $\sigma$
-%     % \STATE heuristic stopping criteria
-%     \STATE Compute $R_{comp}$ according to equation \eqref{}
-%     \STATE Compute $h$ according to equation \eqref{}
-%     \STATE 
-%     \STATE Compute dX, dZ
-%     \STATE ... TBA
-%     \IF{$x,y,z$ satisfies the conditions}
-%         \RETURN x,y,z
-%     \ENDIF
-% \ENDFOR
-% \end{algorithmic}
-% \end{algorithm}
+The pseudo-code for the primal-dual path-following interior-point method incorporating various techniques discussed in the preceding sections is presented as Algorithm~\ref{alg:pd_ipm}. 
+\begin{algorithm}
+\caption{Primal-dual path-following interior-point method}
+\label{alg:pd_ipm}
+\begin{algorithmic}[1]
+% \REQUIRE $(a^p_k, b, c^p, \nu^p)$ (for $p \in P$ and $k=1,\ldots, m$), tolerance parameters
+\STATE \textbf{Preprocessing:} Transform problem as described in Section~\ref{sec:other_computation}. 
+Generate infeasible starting point $(x,y,z) \leftarrow (x^0, y^0, z^0)$
+\FOR{$k = 1, 2, \ldots $}
+    \STATE Compute primal and dual residuals $R_{\text{prim}}, R_{\text{dual}}^p$, and check convergence
+    \STATE Compute current duality gap $\mu$ and assess stopping criteria
+    \IF{convergence achieved}
+        \RETURN $(x, y, z)$
+    \ENDIF
+    
+    \STATE \textbf{System setup:}
+    \STATE Compute coefficient matrices $M_{\text{sparse}}$, $A^u$, $U$, $-D^{-1}$ for augmented system
+    \STATE Apply matrix perturbation $M_{\text{sparse}} \leftarrow M_{\text{sparse}} + \rho D_{M_{\text{sparse}}} + \lambda \mathcal{A}\mathcal{A}^T$
+    \STATE Compute Cholesky decomposition of $M_{\text{sparse}}$ (or LU if Cholesky fails)
+    \STATE Compute $\mathcal{A}\mathcal{H}R_{\text{dual}}$ and $R^u_{\text{dual}}$
+    \STATE 
+    \STATE \textbf{Predictor step:}
+    \STATE Compute complementarity residual $R_{\text{comp}}^{p,\text{pred}}$
+    \STATE Compute $\mathcal{A}\mathcal{E}^{-1}R_{\text{comp}}^{\text{pred}}$ 
+    \STATE Compute right-hand side $h_{\text{pred}} = R_{\text{prim}} + \mathcal{A}\mathcal{E}^{-1}R_{\text{comp}}^{\text{pred}} - \mathcal{A}\mathcal{H}R_{\text{dual}}$
+    \STATE Solve augmented system \eqref{eq:Schur_complement_Mat_aug} to obtain $\delta y, \delta x^u$
+    \STATE Compute $\delta x, \delta z$ from equations \eqref{eq:sol_x_z}
+    \STATE Compute step lengths $\alpha_{P}, \alpha_{D}$
+    \STATE Compute centering parameter $\sigma$ with adaptive exponent $\psi$
+    \STATE
+    \STATE \textbf{Corrector step:}
+    \STATE Compute complementarity residual $R_{\text{comp}}^{p,\text{corr}}$
+    \STATE Compute $\mathcal{A}\mathcal{E}^{-1}R_{\text{comp}}^{\text{corr}}$
+    \STATE Compute right-hand side $h_{\text{corr}} = R_{\text{prim}} + \mathcal{A}\mathcal{E}^{-1}R_{\text{comp}}^{\text{corr}} - \mathcal{A}\mathcal{H}R_{\text{dual}}$
+    \STATE Solve augmented system \eqref{eq:Schur_complement_Mat_aug} to obtain $\Delta y, \Delta x^u$
+    \STATE Compute $\Delta x, \Delta z$ from equations \eqref{eq:sol_x_z}
+    \STATE Compute step lengths $\beta_P, \beta_D$ ensuring positive definiteness
+    \STATE Update: $x \leftarrow x + \beta_P \Delta x$, $y \leftarrow y + \beta_D \Delta y$, $z \leftarrow z + \beta_D \Delta z$
+
+    \STATE 
+    \IF{heuristic stopping criteria met}
+        \RETURN $(x, y, z)$
+    \ENDIF
+    \STATE Apply stabilization for free variables
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+The algorithm's practical success stems from the careful integration of techniques presented throughout this paper: the predictor-corrector framework that balances aggressive progress with numerical stability; sophisticated linear system solving with adaptive factorization and iterative refinement; carefully designed initial points; systematic sparsity exploitation; adaptive perturbation strategies for handling ill-conditioning, etc.
+
+Furthermore, the algorithm achieves computational efficiency by exploiting the fact that the coefficient matrices $M_{\text{sparse}}$, $A^u$, $U$, and $-D^{-1}$ remain unchanged between predictor and corrector steps. This invariance allows the reuse of the expensive Cholesky (or LU) factorization of the augmented system across both linear system solves. The only modification required between steps involves the right-hand side vectors, specifically the complementarity residuals: $R_{\text{comp}}^{p,\text{pred}}$ for the predictor versus $R_{\text{comp}}^{p,\text{corr}}$ for the corrector, where the latter incorporates both centering terms ($\sigma \mu$) and second-order corrections derived from the predictor step.
+
+Note that the actual SDPT3 implementation is highly optimized with numerous computational enhancements that make the practical code significantly more complex than this simplified presentation. 
+Especially, the efficient handling of low-rank structured data, the 3-parameter homogeneous self-dual model for problems with free variables, and sophisticated heuristic stopping criteria are not fully presented in this paper. 
+Readers interested in the complete implementation details are encouraged to consult the original SDPT3 papers \cite{toh1999,Toh2012,tutuncu2003} and the source code.
