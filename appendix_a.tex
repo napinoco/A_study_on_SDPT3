@@ -1,29 +1,14 @@
-\section{A Guide to the Derivation of Equations \eqref{eq:HKM_HRd}--\eqref{eq:NT_M}} \label{sec:guide_for_dir_eq}
+\section{A Guide to the Derivation of Equations \eqref{eq:Einv_Rcomp}--\eqref{eq:NT_M}} \label{sec:guide_for_dir_eq}
 
-% \begin{equation}
-%     \everymath{\displaystyle}
-%     \renewcommand{\arraystretch}{2.5}
-%     \begin{array}{rl}
-%        & \sum_{p=1}^P \mathcal{A}^p(\Delta x^p) = R_{prim} \\
-%        \Leftrightarrow 
-%        & \sum_{p = u} \mathcal{A}^p(\Delta x^p) + \sum_{p \neq u} \mathcal{A}^p(\Delta x^p) = R_{prim} \\
-%        \Leftrightarrow 
-%        & \sum_{p = u} \mathcal{A}^p((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(R_{dual}^p - \mathcal{A}^p(\Delta y))) + \sum_{p \neq u} \mathcal{A}^p(\Delta x^p) = R_{prim} \\
-%        \Leftrightarrow 
-%        & \sum_{p = u} \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T\Delta y = h :=  R_{prim} - \sum_{p = u} \mathcal{A}^p((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p) - \sum_{p \neq u} \mathcal{A}^p(\Delta x^p)
-%     \end{array}
-% \end{equation}
-
-% \begin{align*}
-% a>0 \quad \text{and} \quad c>0 
-% & \Rightarrow (\Delta x^p)_0 > \|\Delta \bar{x}^p\| \quad \text{and} \quad (x^p)_0 > \|\bar{x}^p\| \\
-% & \Rightarrow (\Delta x^p)_0 (x^p)_0 > \|\Delta \bar{x}^p\|\|\bar{x}^p\| \geq (\Delta \bar{x}^p)^T \bar{x}^p \\
-% & \Rightarrow b = (\Delta x^p)_0 (x^p)_0 - (\Delta \bar{x}^p)^T \bar{x}^p > 0
-% \end{align*}
-
-In the case of $\mathbb{K}^p=\mathbb{S}_+^{n_p}$, the derivation for the HKM direction is straightforward by noting that $G^p=(z^p)^\frac{1}{2}$ and $\mathcal{E}\Delta x = ((z^p)^\frac{1}{2}\Delta x^p)\circ ((z^p)^{-\frac{1}{2}}z^p)=(z^p)^\frac{1}{2} \Delta x^p (z^p)^\frac{1}{2}$.
+\paragraph{Semidefinite Cone Case: $\mathbb{K}^p=\mathbb{S}_+^{n_p}$}
+In this case, the derivation for the HKM direction is straightforward. Note that $G^p=(z^p)^\frac{1}{2}$ and 
+\begin{equation*}
+\mathcal{E}\Delta x = ((z^p)^\frac{1}{2}\Delta x^p)\circ ((z^p)^{-\frac{1}{2}}z^p)=(z^p)^\frac{1}{2} \Delta x^p (z^p)^\frac{1}{2}.
+\end{equation*}
 For the NT direction, the derivation is non-trivial and can be found in \cite{todd1998}.
-In the case of $\mathbb{K}^p=\mathbb{Q}^{n_p}$, for $f\in \mathbb{R}^{n^p}$, %define the linear operator $Arw: \mathbb{R}^{n_p} \rightarrow \mathbb{R}^{n\times n}$ as
+
+\paragraph{Second-Order Cone Case: $\mathbb{K}^p=\mathbb{Q}^{n_p}$}
+We define the linear operator $\operatorname{Arw}: \mathbb{R}^{n_p} \rightarrow \mathbb{R}^{n\times n}$ as follows. For $f\in \mathbb{R}^{n^p}$,
 \begin{equation}
     \operatorname{Arw}(f) = 
     \left(
@@ -33,13 +18,14 @@ In the case of $\mathbb{K}^p=\mathbb{Q}^{n_p}$, for $f\in \mathbb{R}^{n^p}$, %de
     \end{array}
     \right)
 \end{equation}
-then $x^p \circ z^p = \operatorname{Arw}(x^p)z^p$ holds, so
+Note that $x^p \circ z^p = \operatorname{Arw}(x^p)\,z^p$. Therefore, the following expressions hold:
 \begin{align*}
-    (\mathcal{E}^p)^{-1}R^p_{comp} &= G^p \cdot \operatorname{Arw}(G^p x^p)^{-1} \cdot R^p_{comp}\\
-    \mathcal{H}^p R^p_{dual} &= G^p \cdot \operatorname{Arw}(G^p x^p)^{-1} \cdot \operatorname{Arw}\big((G^p)^{-1} z^p\big) \cdot(G^p)^{-1} \cdot R^p_{dual}\\
-    \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T &= A^p \cdot G^p \cdot \operatorname{Arw}(G^p x^p)^{-1} \cdot \operatorname{Arw}\big((G^p)^{-1} z^p\big) \cdot(G^p)^{-1} \cdot (A^p)^T
+    (\mathcal{E}^p)^{-1}R^p_{comp} &= (G^p)^{-1} \cdot \operatorname{Arw}\big((G^p)^{-1} z^p\big)^{-1} \cdot R^p_{comp}\\
+    \mathcal{H}^p R^p_{dual} &= (G^p)^{-1} \cdot \operatorname{Arw}\big((G^p)^{-1} z^p\big)^{-1} \cdot \operatorname{Arw}\big(G^p x^p\big) \cdot(G^p)^{-1} \cdot R^p_{dual}\\
+    \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T &= A^p \cdot (G^p)^{-1} \cdot \operatorname{Arw}\big((G^p)^{-1} z^p\big)^{-1} \cdot \operatorname{Arw}\big(G^p x^p\big) \cdot(G^p)^{-1} \cdot (A^p)^T
 \end{align*}
-can be generally described. Furthermore,
+These relations provide the general form for the required computations. 
+Furthermore,
 \begin{equation*}
     \operatorname{Arw}(f)^{-1} = \frac{1}{\gamma(f)^2} \left(\begin{array}{cc}
         f_0 & -\bar{f}^T \\
@@ -51,5 +37,9 @@ can be generally described. Furthermore,
         -\bar{t}^p & I+\frac{1}{1 + t^p_0} \bar{t}^p(\bar{t}^p)^T
     \end{pmatrix}
 \end{equation*}
-holds (note that $\gamma(t)=1$ is assumed), which can be used to derive equations \eqref{eq:HKM_HRd}--\eqref{eq:NT_M}.
-In the case of $\mathcal{K}^p=\mathbb{R}^{n_p}_+$, the derivation is straightforward by noting that $\mathcal{E}^p \Delta x^p = \operatorname{diag}(z^p) \Delta x^p$.
+where we assume $\gamma(t^p)=1$. 
+Equations \eqref{eq:HKM_HRd}--\eqref{eq:NT_M} can be derived by substituting the specific form of $G^p$ and expanding these expressions algebraically.
+
+\paragraph{Linear Cone Case: $\mathbb{K}^p=\mathbb{R}^{n_p}_+$}
+In this case, we always use $G^p=I$, hence the derivation is straightforward by noting that $\mathcal{E}^p \Delta x^p = \operatorname{diag}(z^p) \Delta x^p$.
+
