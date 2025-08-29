@@ -49,5 +49,5 @@ The coefficient matrix $\mathcal{M}$ and its factorization (LU or Cholesky) comp
 
 Furthermore, the right-hand side vector can be efficiently updated.
 Letting $h_{\text{pred}}$ and $h_{\text{corr}}$ denote the vectors for the predictor and corrector steps respectively, we have
-\[h_{\text{corr}}=h_{\text{pred}} + \sum_{p\in P\setminus P^u} \mathcal{A}^p (\mathcal{E}^p)^{-1} \big((G^p \delta x^p) \circ ((G^p)^{-1} \delta z^p) \big).\]
+\[h_{\text{corr}}=h_{\text{pred}} + \sum_{p\in P\setminus P^{\text{u}}} \mathcal{A}^p (\mathcal{E}^p)^{-1} \big((G^p \delta x^p) \circ ((G^p)^{-1} \delta z^p) \big).\]
 Thus, although the predictor-corrector method requires solving the linear system twice, the additional computational cost is minimal due to these reuse strategies.

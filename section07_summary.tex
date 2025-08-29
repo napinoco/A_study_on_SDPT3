@@ -15,16 +15,16 @@ Generate infeasible starting point $(x,y,z) \leftarrow (x^0, y^0, z^0)$
     \ENDIF
     
     \STATE \textbf{System setup:}
-    \STATE Compute coefficient matrices $M_{\text{sparse}}$, $A^u$, $U$, $-D^{-1}$ for augmented system
+    \STATE Compute coefficient matrices $M_{\text{sparse}}$, $A^{\text{u}}$, $U$, $-D^{-1}$ for augmented system
     \STATE Apply matrix perturbation $M_{\text{sparse}} \leftarrow M_{\text{sparse}} + \rho D_{M_{\text{sparse}}} + \lambda \mathcal{A}\mathcal{A}^T$
     \STATE Compute Cholesky decomposition of $M_{\text{sparse}}$ (or LU if Cholesky fails)
-    \STATE Compute $\mathcal{A}\mathcal{H}R_{\text{dual}}$ and $R^u_{\text{dual}}$
+    \STATE Compute $\mathcal{A}\mathcal{H}R_{\text{dual}}$ and $R^{\text{u}}_{\text{dual}}$
     \STATE 
     \STATE \textbf{Predictor step:}
     \STATE Compute complementarity residual $R_{\text{comp}}^{p,\text{pred}}$
     \STATE Compute $\mathcal{A}\mathcal{E}^{-1}R_{\text{comp}}^{\text{pred}}$ 
     \STATE Compute right-hand side $h_{\text{pred}} = R_{\text{prim}} + \mathcal{A}\mathcal{E}^{-1}R_{\text{comp}}^{\text{pred}} - \mathcal{A}\mathcal{H}R_{\text{dual}}$
-    \STATE Solve augmented system \eqref{eq:Schur_complement_Mat_aug} to obtain $\delta y, \delta x^u$
+    \STATE Solve augmented system \eqref{eq:Schur_complement_Mat_aug} to obtain $\delta y, \delta x^{\text{u}}$
     \STATE Compute $\delta x, \delta z$ from equations \eqref{eq:sol_x_z}
     \STATE Compute step lengths $\alpha_{P}, \alpha_{D}$
     \STATE Compute centering parameter $\sigma$ with adaptive exponent $\psi$
@@ -33,7 +33,7 @@ Generate infeasible starting point $(x,y,z) \leftarrow (x^0, y^0, z^0)$
     \STATE Compute complementarity residual $R_{\text{comp}}^{p,\text{corr}}$
     \STATE Compute $\mathcal{A}\mathcal{E}^{-1}R_{\text{comp}}^{\text{corr}}$
     \STATE Compute right-hand side $h_{\text{corr}} = R_{\text{prim}} + \mathcal{A}\mathcal{E}^{-1}R_{\text{comp}}^{\text{corr}} - \mathcal{A}\mathcal{H}R_{\text{dual}}$
-    \STATE Solve augmented system \eqref{eq:Schur_complement_Mat_aug} to obtain $\Delta y, \Delta x^u$
+    \STATE Solve augmented system \eqref{eq:Schur_complement_Mat_aug} to obtain $\Delta y, \Delta x^{\text{u}}$
     \STATE Compute $\Delta x, \Delta z$ from equations \eqref{eq:sol_x_z}
     \STATE Compute step lengths $\beta_P, \beta_D$ ensuring positive definiteness
     \STATE Update: $x \leftarrow x + \beta_P \Delta x$, $y \leftarrow y + \beta_D \Delta y$, $z \leftarrow z + \beta_D \Delta z$
@@ -49,7 +49,7 @@ Generate infeasible starting point $(x,y,z) \leftarrow (x^0, y^0, z^0)$
 
 The algorithm's practical success stems from the careful integration of techniques presented throughout this paper: the predictor-corrector framework that balances aggressive progress with numerical stability; sophisticated linear system solving with adaptive factorization and iterative refinement; carefully designed initial points; systematic sparsity exploitation; adaptive perturbation strategies for handling ill-conditioning, etc.
 
-Furthermore, the algorithm achieves computational efficiency by exploiting the fact that the coefficient matrices $M_{\text{sparse}}$, $A^u$, $U$, and $-D^{-1}$ remain unchanged between predictor and corrector steps. This invariance allows the reuse of the expensive Cholesky (or LU) factorization of the augmented system across both linear system solves. The only modification required between steps involves the right-hand side vectors, specifically the complementarity residuals: $R_{\text{comp}}^{p,\text{pred}}$ for the predictor versus $R_{\text{comp}}^{p,\text{corr}}$ for the corrector, where the latter incorporates both centering terms ($\sigma \mu$) and second-order corrections derived from the predictor step.
+Furthermore, the algorithm achieves computational efficiency by exploiting the fact that the coefficient matrices $M_{\text{sparse}}$, $A^{\text{u}}$, $U$, and $-D^{-1}$ remain unchanged between predictor and corrector steps. This invariance allows the reuse of the expensive Cholesky (or LU) factorization of the augmented system across both linear system solves. The only modification required between steps involves the right-hand side vectors, specifically the complementarity residuals: $R_{\text{comp}}^{p,\text{pred}}$ for the predictor versus $R_{\text{comp}}^{p,\text{corr}}$ for the corrector, where the latter incorporates both centering terms ($\sigma \mu$) and second-order corrections derived from the predictor step.
 
 Note that the actual SDPT3 implementation is highly optimized with numerous computational enhancements that make the practical code significantly more complex than this simplified presentation. 
 Especially, the efficient handling of low-rank structured data, the 3-parameter homogeneous self-dual model for problems with free variables, and sophisticated heuristic stopping criteria are not fully presented in this paper. 

@@ -49,8 +49,8 @@ Then, the primal problem (P) and the dual problem (D) can be written as follows:
   \right.
 \]
 
-We define $P^u := \{\, p \in P \mid \mathbb{K}^p = \mathbb{R}^{n_p} \}\,$\footnote{%
-  The superscript $u$ stands for "unrestricted," meaning $\mathbb{K}^p = \mathbb{R}^{n_p}$.
+We define $P^{\text{u}} := \{\, p \in P \mid \mathbb{K}^p = \mathbb{R}^{n_p} \}\,$\footnote{%
+  The superscript $\text{u}$ stands for "unrestricted," meaning $\mathbb{K}^p = \mathbb{R}^{n_p}$.
 }.
 The KKT conditions for the optimality of problems (P) and (D) are:
 \begin{equation}
@@ -60,13 +60,13 @@ The KKT conditions for the optimality of problems (P) and (D) are:
     \begin{array}{ll}
         \sum_{p \in P} \mathcal{A}^p x^p - b = 0, & \\[-4pt]
         (\mathcal{A}^p)^T y + z^p - c^p = 0, & \quad (p \in P),\\[-4pt]
-        x^p \circ z^p - \nu^p e^p = 0, & \quad (p \in P \setminus P^u),\\[-4pt]
+        x^p \circ z^p - \nu^p e^p = 0, & \quad (p \in P \setminus P^{\text{u}}),\\[-4pt]
         x^p \in \mathbb{K}^p,\; y \in \mathbb{R}^m,\; z^p \in (\mathbb{K}^p)^*, & \quad (p \in P).
     \end{array}
     \right.
     \label{eq:KKTcond}
 \end{equation}
-In the third equation, the bilinear mapping $x^p \circ z^p$ is defined for each block $p \in P \setminus P^u$ as
+In the third equation, the bilinear mapping $x^p \circ z^p$ is defined for each block $p \in P \setminus P^{\text{u}}$ as
 \[
   x^p \circ z^p = 
   \begin{cases}
@@ -114,7 +114,7 @@ Using the parameter $\sigma \in [0,1)$ and the scaling matrices $G^p$ for each b
     \begin{array}{rll}
          \sum_{p \in P} \mathcal{A}^p \Delta x^p & = R_{prim} := b - \sum_{p \in P} \mathcal{A}^p x^p &  \\
          (\mathcal{A}^p)^T \Delta y + \Delta z^p & = R_{dual}^p := c^p - z^p - (\mathcal{A}^p)^T y & (p \in P) \\
-         \mathcal{E}^p \Delta x^p + \mathcal{F}^p \Delta z^p & = R_{comp}^p := \max\{\sigma \mu, \nu^p\} e^p - \big(G^p x^p\big) \circ \big((G^p)^{-1} z^p\big) & (p \in P \setminus P^u)
+         \mathcal{E}^p \Delta x^p + \mathcal{F}^p \Delta z^p & = R_{comp}^p := \max\{\sigma \mu, \nu^p\} e^p - \big(G^p x^p\big) \circ \big((G^p)^{-1} z^p\big) & (p \in P \setminus P^{\text{u}})
     \end{array}
     \right.
     \label{eq:NewtonKKT}
@@ -246,10 +246,10 @@ Substituting \eqref{eq:sol_x_z} into the first equation of \eqref{eq:NewtonKKT},
 \begin{equation}
     \left\{
     \begin{aligned}
-        \sum_{p \in P\setminus P^u} \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T\Delta y + \sum_{p \in P^u} \mathcal{A}^p(\Delta x^p) 
-            &= R_{prim} - \sum_{p \in P\setminus P^u} \mathcal{A}^p \big( (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p \big) \\
+        \sum_{p \in P\setminus P^{\text{u}}} \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T\Delta y + \sum_{p \in P^{\text{u}}} \mathcal{A}^p(\Delta x^p) 
+            &= R_{prim} - \sum_{p \in P\setminus P^{\text{u}}} \mathcal{A}^p \big( (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p \big) \\
         (\mathcal{A}^p)^T \Delta y 
-            &= R^p_{dual} \qquad (p\in P^u)
+            &= R^p_{dual} \qquad (p\in P^{\text{u}})
     \end{aligned}
     \right.
     \label{eq:Schur_complement}
@@ -262,32 +262,32 @@ Let the matrix $M^p \in \mathbb{S}^{m}$ satisfy
 \]
 and define:
 \begin{align*}
-    M &= \sum_{p \in P \setminus P^u} M^p \\
-    h &= R_{prim} - \sum_{p \in P \setminus P^u} \mathcal{A}^p\big((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p\big)\\
+    M &= \sum_{p \in P \setminus P^{\text{u}}} M^p \\
+    h &= R_{prim} - \sum_{p \in P \setminus P^{\text{u}}} \mathcal{A}^p\big((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p\big)\\
     A^p &= \begin{pmatrix}
         (a^p_1)^T\\
         (a^p_2)^T\\
         \vdots\\
         (a^p_m)^T
     \end{pmatrix} \in \mathbb{R}^{m\times n_p} \quad (p\in P)\\
-    A^u &= [ A^p ~ (p\in P^u)\text{ concatenated horizontally} ]\\
-    R^u_{dual} &= [ R^p_{dual} ~ (p\in P^u)\text{ concatenated vertically} ]\\
-    \Delta x^u &= [ \Delta x^p ~ (p\in P^u)\text{ concatenated vertically} ]
+    A^{\text{u}} &= [ A^p ~ (p\in P^{\text{u}})\text{ concatenated horizontally} ]\\
+    R^{\text{u}}_{dual} &= [ R^p_{dual} ~ (p\in P^{\text{u}})\text{ concatenated vertically} ]\\
+    \Delta x^{\text{u}} &= [ \Delta x^p ~ (p\in P^{\text{u}})\text{ concatenated vertically} ]
 \end{align*}
 Then, the equation \eqref{eq:Schur_complement} can be represented in matrix form as:
 \begin{equation}
     \underbrace{\left(\begin{array}{cc}
-        M   & A^u \\
-        A^u & O
+        M   & A^{\text{u}} \\
+        A^{\text{u}} & O
     \end{array}\right)}_{\mathcal{M}}
     \left(\begin{array}{c}
         \Delta y   \\
-        \Delta x^u 
+        \Delta x^{\text{u}} 
     \end{array}\right) 
     = 
     \left(\begin{array}{c}
          h  \\
-         R_{dual}^u 
+         R_{dual}^{\text{u}} 
     \end{array}
     \right)
     \label{eq:Schur_complement_Mat}
@@ -355,18 +355,18 @@ The first approach is to perform LU decomposition of the entire matrix $\mathcal
 This allows the product of $\mathcal{M}^{-1}$ and a vector to be calculated by forward and backward substitution, which is numerically more stable than explicitly computing the inverse of the ill-conditioned matrix $\mathcal{M}$.
 
 If $M$ is positive definite, another approach can be taken. 
-Using the Schur complement $S := (A^u)^T M^{-1} A^u - O$, we have:
+Using the Schur complement $S := (A^{\text{u}})^T M^{-1} A^{\text{u}} - O$, we have:
 \[
 \mathcal{M}^{-1}=\begin{pmatrix}
-    M^{-1} + M^{-1} A^u S^{-1} (A^u)^T M^{-1} & -M^{-1} A^u S^{-1} \\
-    -S^{-1} (A^u)^T M^{-1} & S^{-1}
+    M^{-1} + M^{-1} A^{\text{u}} S^{-1} (A^{\text{u}})^T M^{-1} & -M^{-1} A^{\text{u}} S^{-1} \\
+    -S^{-1} (A^{\text{u}})^T M^{-1} & S^{-1}
 \end{pmatrix}
 \]
 Thus, we obtain:
 \[
-    \mathcal{M}^{-1}\begin{pmatrix}u \\ v \end{pmatrix} = \begin{pmatrix} \hat{u} - M^{-1} A^u \hat{v} \\ \hat{v} \end{pmatrix}
+    \mathcal{M}^{-1}\begin{pmatrix}u \\ v \end{pmatrix} = \begin{pmatrix} \hat{u} - M^{-1} A^{\text{u}} \hat{v} \\ \hat{v} \end{pmatrix}
 \]
-where $\hat{u} = M^{-1} u$ and $\hat{v} = S^{-1}\big((A^u)^T \hat{u} - v \big)$.
+where $\hat{u} = M^{-1} u$ and $\hat{v} = S^{-1}\big((A^{\text{u}})^T \hat{u} - v \big)$.
 Therefore, if the Cholesky decomposition of $M$ and the LU decomposition of $S$ are calculated in advance, the calculation of the product of $\mathcal{M}^{-1}$ and a vector reduces to three forward-backward substitutions for $M$ and two forward-backward substitutions for $S$.
 This approach is computationally more efficient for two reasons: $M$ can use Cholesky decomposition (which is faster than LU decomposition), and $S$ is typically much smaller than $\mathcal{M}$.
 However, while this method is efficient from a computational standpoint, it has the disadvantage that $S$ tends to become extremely ill-conditioned.
@@ -505,14 +505,14 @@ Therefore, it is desirable to provide initial points with scales comparable to t
 SDPT3 employs the following empirically effective initialization: $y = 0$, and for each $p\in P$,
 \[
     x^p = \begin{cases}
-        \zeta^p\, e^p, & \text{if } p \in P \setminus P^u,\\
-        0, & \text{if } p\in P^u,
+        \zeta^p\, e^p, & \text{if } p \in P \setminus P^{\text{u}},\\
+        0, & \text{if } p\in P^{\text{u}},
     \end{cases}
     \quad
     \quad 
     z^p = \begin{cases}
-        \eta^p\, e^p, & \text{if } p \in P \setminus P^u,\\
-        0, & \text{if } p\in P^u,
+        \eta^p\, e^p, & \text{if } p \in P \setminus P^{\text{u}},\\
+        0, & \text{if } p\in P^{\text{u}},
     \end{cases}
 \]
 % is used as the initial point\footnote{If it is unknown whether problems (P) and (D) have feasible solutions or if they do not have any interior points, converting to a Homogeneous Self-Dual (HSD) model may be effective.

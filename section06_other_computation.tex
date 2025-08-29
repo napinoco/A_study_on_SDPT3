@@ -56,7 +56,7 @@ The standard algorithm cannot be directly applied to the HSD model and requires 
 \medskip
 
 When $\nu^p \neq 0$ for some $p \in P$, the problem (P) and (D) cannot be converted to the HSD model.
-As seen from \eqref{eq:Schur_complement_Mat}, unrestricted blocks (i.e., $\mathbb{K}^p = \mathbb{R}^{n_p}$) require solving augumented systems involving $A^u$, which increases computational cost.
+As seen from \eqref{eq:Schur_complement_Mat}, unrestricted blocks (i.e., $\mathbb{K}^p = \mathbb{R}^{n_p}$) require solving augumented systems involving $A^{\text{u}}$, which increases computational cost.
 To avoid this overhead, SDPT3 eliminates free variables $x^p \in \mathbb{R}^{n_p}$ by splitting them into non-negative components:
 \[
    x^p = x^p_+ - x^p_-, \quad \text{where } (x^p_+, x^p_-) \in \mathbb{R}^{2n_p}_+
