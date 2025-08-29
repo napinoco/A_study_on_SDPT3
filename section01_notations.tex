@@ -9,6 +9,15 @@ The $(i,j)$ component of $x \in \mathbb{R}^{m \times n}$ is denoted by $x_{ij}$.
 For both vectors and matrices, the transpose of $x$ is denoted by $x^T$.
 If $x \in \mathbb{R}^{n \times n}$ is invertible, its inverse is denoted by $x^{-1}$, and the transpose of the inverse by $x^{-T}$.
 The trace of a matrix $x$ is denoted by $\operatorname{trace}(x)$, and the determinant by $\operatorname{det}(x)$.
+For a vector $x \in \mathbb{R}^n$, we denote by $\operatorname{diag}(x) \in \mathbb{R}^{n \times n}$ the diagonal matrix with diagonal entries given by the components of $x$:
+\[
+\operatorname{diag}(x) = \begin{pmatrix}
+x_1 & 0 & \cdots & 0 \\
+0 & x_2 & \cdots & 0 \\
+\vdots & \vdots & \ddots & \vdots \\
+0 & 0 & \cdots & x_n
+\end{pmatrix}.
+\]
 The identity matrix of size $n \times n$ is denoted by $I_n$ or simply $I$ when the dimension is clear from context.
 Additionally, we define the diagonal matrix $J$ as follows:
 \[
