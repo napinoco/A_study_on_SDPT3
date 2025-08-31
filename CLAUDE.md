@@ -33,9 +33,9 @@ latexmk -C main_en.tex
 - `section06_other_computation.tex` - Section 6: Other computational techniques
 - `section07_summary.tex` - Section 7: Algorithm summary
 - `appendix_a.tex` - Appendix A: Guide to equation derivations
+- `appendix_b.tex` - Appendix B: SDPT3 Input Data Format
 - `references.bib` - Bibliography file with academic references
 - `latexmkrc` - LaTeX build configuration (uses platex/pbibtex for Japanese compatibility)
-- `backup/` - Contains backup versions of documents including Japanese version
 
 ## Key Document Components
 
