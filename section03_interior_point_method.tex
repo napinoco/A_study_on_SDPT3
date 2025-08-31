@@ -49,9 +49,9 @@ Then, the primal problem (P) and the dual problem (D) can be written as follows:
   \right.
 \]
 
-We define $P^{\text{u}} := \{\, p \in P \mid \mathbb{K}^p = \mathbb{R}^{n_p} \}\,$\footnote{%
+We define $P^{\text{u}} := \{\, p \in P \mid \mathbb{K}^p = \mathbb{R}^{n_p} \,\}$.\footnote{%
   The superscript $\text{u}$ stands for "unrestricted," meaning $\mathbb{K}^p = \mathbb{R}^{n_p}$.
-}.
+}
 The KKT conditions for the optimality of problems (P) and (D) are:
 \begin{equation}
     \everymath{\displaystyle}
@@ -88,17 +88,17 @@ where $e^p$ is the identity element for this operator:
   \end{cases}
 \]
 The bilinear operator $\circ$ is called the Jordan product on $\mathbb{K}^p$.
-Note that in the case of $\mathbb{S}^{n_p}_+$, it is usually written as $x^p \circ z^p = \frac{1}{2}(x^p z^p + z^p x^p)$, but in this paper, we extend this operator to non-symmetric matrices and use the notation $x^p \circ z^p = \frac{1}{2} \left( x^p (z^p)^T + z^p (x^p)^T \right)$ for the sake of notational simplicity.
+Note that in the case of $\mathbb{S}^{n_p}_+$, it is usually written as $x^p \circ z^p = \frac{1}{2}(x^p z^p + z^p x^p)$, 
+but in this paper, we extend this operator to non-symmetric matrices and use the notation $x^p \circ z^p = \frac{1}{2} \left( x^p (z^p)^T + z^p (x^p)^T \right)$ for the sake of notational simplicity.
 While this extension of the operator $\circ$ to non-symmetric matrices does not satisfy the definition of Jordan algebra \cite{Faraut1994}, it allows for unified and simplified notation (especially in equations like \eqref{eq:NewtonKKT}).
 
-
-Now, consider replacing $\nu^p$ ($p \in P$) with a positive constant $\mu > 0$. 
-Then, the KKT conditions \eqref{eq:KKTcond} are known to provide a unique solution $\big( x(\mu),\, y(\mu),\, z(\mu) \big)$ within the feasible region. 
-This solution changes smoothly with the value of $\mu$, forming a central path $T$:
+Now, consider replacing each $\nu^p$ ($p \in P$) in the complementarity conditions with a common positive parameter $\mu > 0$. 
+Then, under mild regularity conditions, the perturbed KKT system \eqref{eq:KKTcond} provides a unique solution $\big( x(\mu),\, y(\mu),\, z(\mu) \big)$ within the feasible region. 
+This solution forms a differentiable trajectory with respect to $\mu$, called the central path $T$:
 \[
   T = \left\{ \big( x(\mu),\, y(\mu),\, z(\mu) \big) \mid \mu > 0 \right\}.
 \]
-In practice, since larger values of $\mu$ tend to yield better conditioning, the path-following method starts with a large value of $\mu$ and gradually decreases it toward the actual values of $\nu^p$, tracking the central path to find the optimal solution.
+In practice, larger values of $\mu$ tend to yield better numerical conditioning. Therefore, the path-following method starts with a large value of $\mu$ and gradually decreases it toward the target values $\nu^p$, tracking the central path to find the optimal solution of the original problem.
 
 In the following sections, we will detail the main components of this algorithm, including the definition and computation of the search direction, the choice of step size, and convergence criteria.
 
@@ -107,7 +107,8 @@ In the following sections, we will detail the main components of this algorithm,
 \subsubsection{Framework of the Search Direction}
 We assume that a current iterate $(x,\,y,\,z) \in \operatorname{int}(\mathbb{K}) \times \mathbb{R}^m \times \operatorname{int}(\mathbb{K}^*)$ is given, where $\mathbb{K} := \mathbb{K}^1 \times \cdots \times \mathbb{K}^{p_{\max}}$ and $\mathbb{K}^* := (\mathbb{K}^1)^* \times \cdots \times (\mathbb{K}^{p_{\max}})^*$, with $x = (x^1, \ldots, x^{p_{\max}})$ and $z = (z^1, \ldots, z^{p_{\max}})$.
 
-Using the parameter $\sigma \in [0,1)$ and the scaling matrices $G^p$ for each block $p \in P$, the search direction $(\Delta x,\, \Delta y,\, \Delta z)$ is given as the solution to the following equations:
+To compute the next iterate along the central path, we apply Newton's method to the perturbed KKT system. 
+Introducing the parameter $\sigma \in [0,1)$ and the scaling matrices $G^p$ for $p \in P$, the search direction $(\Delta x,\, \Delta y,\, \Delta z)$ is obtained as the solution to the following equations:
 \begin{equation}
     \renewcommand{\arraystretch}{2.5}
     \left\{
@@ -134,29 +135,27 @@ with $P^0 := \{p\in P \mid \nu^p=0\}$, and the linear mappings $\mathcal{E}^p : 
     := \big(G^p x^p\big) \circ \big((G^p)^{-1} \Delta z^p\big).
 \]
 
-Equation \eqref{eq:NewtonKKT} can be interpreted as the Newton step to approximately satisfy the primal feasibility, dual feasibility, and complementarity conditions of the KKT conditions \eqref{eq:KKTcond}.
-By introducing the scaling matrices $G^p$ according to the cone structure of each block, the complementarity condition is appropriately transformed and symmetrized.
-The parameter $\sigma$ controls the target point on the central path, with $\sigma \mu$ serving as the target duality gap.
-
-The choice of scaling matrices $G^p$ affects the linearization of the complementarity part, impacting numerical stability and efficiency in sparse matrix processing.
-Depending on the application field and problem characteristics, the appropriate search direction should be chosen.
+Equation \eqref{eq:NewtonKKT} represents a linearized system derived from Newton's method applied to the perturbed KKT conditions \eqref{eq:KKTcond}. 
+The first two equations directly correspond to the primal and dual feasibility conditions, while the third equation linearizes the complementarity conditions with the parameter $\sigma$ and scaling matrices $G^p$.
+The parameter $\sigma \in [0,1)$ controls the target point on the central path, with $\sigma \mu$ serving as the target duality gap.
+The scaling matrices $G^p$ provide variable transformations that affect the convergence properties. 
+Different choices of $G^p$ lead to distinct search directions with varying computational costs and numerical stability, as detailed in the following subsections.
 
 
 \subsubsection{AHO Direction}
-First, consider the simplest scaling case where $G^p = I$. 
-This is known as the Alizadeh-Haeberly-Overton (AHO) search direction \cite{Alizadeh1998} in the context of semidefinite programming and second-order cone programming. 
-The AHO search direction is numerically stable but has a high computational cost per iteration. 
-For simple cones such as $\mathbb{K}^p = \mathbb{R}^{n_p}_+$ and $\mathbb{K}^p = \mathbb{R}^{n_p}$, the standard choice is to use $G^p = I$.
+Consider first the simplest scaling choice where $G^p = I$. 
+This yields the Alizadeh-Haeberly-Overton (AHO) search direction \cite{Alizadeh1998}, which is widely used in semidefinite programming and second-order cone programming. 
+The AHO search direction exhibits good numerical stability but incurs higher computational cost per iteration compared to scaled variants. 
+For linear and unrestricted blocks ($\mathbb{K}^p = \mathbb{R}^{n_p}_+$ and $\mathbb{K}^p = \mathbb{R}^{n_p}$), the identity scaling $G^p = I$ remains the standard choice.
 
 
 \subsubsection{HKM Direction}
-For $\mathbb{K}^p = \mathbb{S}^{n_p}_+$ or $\mathbb{K}^p = \mathbb{Q}^{n_p}$, consider the following scaling matrices $G^p$.
+For semidefinite and second-order cone blocks ($\mathbb{K}^p = \mathbb{S}^{n_p}_+$ or $\mathbb{K}^p = \mathbb{Q}^{n_p}$), consider the following scaling matrices $G^p$.
 
 \paragraph{Semidefinite cone: \(\mathbb{K}^p = \mathbb{S}^{n_p}_+\).}
 \[
   G^p := (z^p)^{\tfrac12}.
 \]
-Since $z^p$ is a positive semidefinite matrix, $(z^p)^{1/2}$ is uniquely defined. 
 In this case, $G^p e^p (G^p)^T = z^p$ holds.
 
 \paragraph{Second-order cone: \(\mathbb{K}^p = \mathbb{Q}^{n_p}\).}
@@ -172,17 +171,18 @@ In this case, $G^p e^p (G^p)^T = z^p$ holds.
     \bar{t}^p & I + \frac{1}{1+t^p_0}\,\bar{t}^p(\bar{t}^p)^T
   \end{pmatrix}.
 \]
-Here, $\gamma(\cdot)$ is the norm function for the second-order cone (see Chapter 2). 
 In this case, $G^p e^p = z^p$ holds.
 
-The search direction obtained by solving equation \eqref{eq:NewtonKKT} with these scaling matrices $G^p$ is called the HKM search direction\footnote{
-More precisely, this approach was proposed by Helmberg--Rendl--Vanderbei--Wolkowicz~\cite{} / Kojima--Shindoh--Hara~\cite{Kojima1997} / Monteiro~\cite{Monteiro1997}, and is also referred to as the HRVW/KSH/M direction.
-}. 
-It is known for its numerical stability and ability to exploit problem sparsity effectively.
+\medskip 
+
+The search direction obtained by solving equation \eqref{eq:NewtonKKT} with these scaling matrices $G^p$ is called the HKM search direction.\footnote{
+More precisely, this approach was proposed by Helmberg--Rendl--Vanderbei--Wolkowicz~\cite{Helmberg1996} / Kojima--Shindoh--Hara~\cite{Kojima1997} / Monteiro~\cite{Monteiro1997}, and is also referred to as the HRVW/KSH/M direction.
+} 
+It is known for its numerical stability and effectiveness in exploiting problem sparsity, making it particularly suitable for large-scale semidefinite programs.
 
 
 \subsubsection{NT Direction}
-For $\mathbb{K}^p = \mathbb{S}^{n_p}_+$ or $\mathbb{K}^p = \mathbb{Q}^{n_p}$, consider the following scaling matrices $G^p$.
+For semidefinite and second-order cone blocks ($\mathbb{K}^p = \mathbb{S}^{n_p}_+$ or $\mathbb{K}^p = \mathbb{Q}^{n_p}$), consider the following scaling matrices $G^p$.
 
 \paragraph{Semidefinite cone: \(\mathbb{K}^p = \mathbb{S}^{n_p}_+\).}
 \[
@@ -191,7 +191,6 @@ For $\mathbb{K}^p = \mathbb{S}^{n_p}_+$ or $\mathbb{K}^p = \mathbb{Q}^{n_p}$, co
     \Bigl( (x^p)^{\frac12} \bigl( (x^p)^{\frac12} z^p (x^p)^{\frac12} \bigr)^{-\frac12} (x^p)^{\frac12} \Bigr)^{-\frac12}.
 \]
 In this case, $(G^p)^{-1} z^p (G^p)^{-T} = G^p x^p (G^p)^T$ holds. 
-% In practice, $W^p := (G^p)^2$ is efficiently computed using eigenvalue decomposition or Cholesky decomposition.
 
 \paragraph{Second-order cone: \(\mathbb{K}^p = \mathbb{Q}^{n_p}\).}
 \begin{equation}
@@ -216,10 +215,14 @@ In this case, $(G^p)^{-1} z^p (G^p)^{-T} = G^p x^p (G^p)^T$ holds.
 \end{equation}
 In this case, $(G^p)^{-1} z^p = G^p x^p$ holds.
 
+\medskip 
+
 The search direction obtained by solving equation \eqref{eq:NewtonKKT} with these scaling matrices $G^p$ is called the Nesterov--Todd (NT) search direction \cite{Nesterov1997,todd1998}. 
 The NT search direction is based on the theory of self-concordant barriers and is known for its strong theoretical guarantees of global convergence.
 
-In SDPT3, the options \texttt{HKM} and \texttt{NT} can be selected for search directions for $\mathbb{K}^p = \mathbb{S}^{n_p}_+$ and $\mathbb{K}^p = \mathbb{Q}^{n_p}$, but regardless of the option chosen, $G^p = I$ is used for $\mathbb{K}^p = \mathbb{R}^{n_p}_+$ and $\mathbb{K}^p = \mathbb{R}^{n_p}$.
+\medskip 
+
+In SDPT3, \texttt{HKM} and \texttt{NT} options are available for semidefinite and second-order cone blocks ($\mathbb{K}^p = \mathbb{S}^{n_p}_+$ and $\mathbb{K}^p = \mathbb{Q}^{n_p}$), while the identity scaling $G^p = I$ is always used for linear and unrestricted blocks ($\mathbb{K}^p = \mathbb{R}^{n_p}_+$ and $\mathbb{K}^p = \mathbb{R}^{n_p}$), regardless of the selected search direction.
 
 
 \subsection{Reduction of the equation}
@@ -234,7 +237,7 @@ First, by solving $(\mathcal{A}^p)^T \Delta y + \Delta z^p = R_{dual}^p$ and $\m
     \begin{array}{rll}
     \Delta z^p &= R_{dual}^p - \mathcal{A}^p(\Delta y)  & (p\in P)\\
     \Delta x^p &= (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(\Delta z^p) \\
-               &= (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(R_{dual}^p - \mathcal{A}^p(\Delta y))  & (p\in P \text{ s.t. } \mathbb{K}^p \neq \mathbb{R})
+               &= (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(R_{dual}^p - \mathcal{A}^p(\Delta y))  & (p\in P\setminus P^{\text{u}})
    \end{array}
    \right.
    \label{eq:sol_x_z}
@@ -254,6 +257,8 @@ Substituting \eqref{eq:sol_x_z} into the first equation of \eqref{eq:NewtonKKT},
     \right.
     \label{eq:Schur_complement}
 \end{equation}
+
+\medskip
 
 Next, we consider reducing \eqref{eq:Schur_complement} to matrix representations. 
 Let the matrix $M^p \in \mathbb{S}^{m}$ satisfy
@@ -293,8 +298,11 @@ Then, the equation \eqref{eq:Schur_complement} can be represented in matrix form
     \label{eq:Schur_complement_Mat}
 \end{equation}
 
+\medskip
+
 In the following, we describe the specific computation of the matrix $M$ and vector $h$ in the Schur complement system \eqref{eq:Schur_complement_Mat}, namely the calculation methods for $(\mathcal{E}^p)^{-1}R^p_{comp}$, $\mathcal{H}^p R^p_{dual}$, and the matrix $M^p$ for both HKM and NT search directions. 
 The detailed derivations are omitted here; a concise guide can be found in Appendix~\ref{sec:guide_for_dir_eq}. 
+
 For both HKM and NT search directions, we have:
 \begin{equation}
     (\mathcal{E}^p)^{-1}R^p_{comp} = \max\{\sigma\mu, \nu^p\}(z^p)^{-J} - x^p \qquad (p \in P)
@@ -303,35 +311,37 @@ For both HKM and NT search directions, we have:
 where $(z^p)^{-J}$ is the inverse element of $z^p$ with respect to the Jordan product $\circ$:
 \[
     (z^p)^{-J} = \begin{cases}
-        (z^p)^{-1} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
-        \frac{1}{(\gamma(z^p))^2} J z^p & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
-        (1/z_1, \ldots, 1/z_{n_p})^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+.
+        (z^p)^{-1} & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+, \\
+        \frac{1}{(\gamma(z^p))^2} J z^p & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p}, \\
+        (1/z_1, \ldots, 1/z_{n_p})^T & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+.
     \end{cases}
 \]
+\medskip
 When the search direction option is set to \texttt{HKM}, SDPT3 uses:
 \begin{align}
     \mathcal{H}^p R^p_{dual} &= \begin{cases}
-        \frac{1}{2}(x^p R^p_{dual} (z^p)^{-1} + (z^p)^{-1} R^p_{dual} x^p) & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+\\
-        - \Big( (x^p)^T J (z^p)^{-J} \Big) J R^p_{dual} + \inprod{(z^p)^{-J}}{R^p_{dual}} x^p + \inprod{R^p_{dual}}{x^p} (z^p)^{-J} & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p}\\
-        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} \Delta z^p & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+        \frac{1}{2}(x^p R^p_{dual} (z^p)^{-1} + (z^p)^{-1} R^p_{dual} x^p) & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\
+        - \Big( (x^p)^T J (z^p)^{-J} \Big) J R^p_{dual} + \inprod{(z^p)^{-J}}{R^p_{dual}} x^p + \inprod{R^p_{dual}}{x^p} (z^p)^{-J} & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p},\\
+        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} \Delta z^p & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+
     \end{cases} \label{eq:HKM_HRd}\\
     M^p &= \begin{cases} 
-        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{x^p a^p_\ell (z^p)^{-1}} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
-        -\Big( (x^p)^T J (z^p)^{-J} \Big) A^p J (A^p)^T + (A^p x^p)(A^p (z^p)^{-J})^T + (A^p (z^p)^{-J})(A^p x^p)^T& \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
-        A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+.
+        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{x^p a^p_\ell (z^p)^{-1}} & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+, \\
+        -\Big( (x^p)^T J (z^p)^{-J} \Big) A^p J (A^p)^T + (A^p x^p)(A^p (z^p)^{-J})^T + (A^p (z^p)^{-J})(A^p x^p)^T& \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p}, \\
+        A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+.
     \end{cases}
 \end{align}
+\medskip
 When the search direction option is set to \texttt{NT}, SDPT3 uses:
 \begin{align}
     \mathcal{H}^p R^p_{dual} &= \begin{cases}
-        W^p R^p_{dual} W^p & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+ \\
-        \frac{1}{(\omega^p)^2} \Big(-J R^p_{dual} + 2\inprod{R^p_{dual}}{t^p}t^p\Big) & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p}\\
-        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} R^p_{dual} & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+
+        W^p R^p_{dual} W^p & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+, \\
+        \frac{1}{(\omega^p)^2} \Big(-J R^p_{dual} + 2\inprod{R^p_{dual}}{t^p}t^p\Big) & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p},\\
+        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} R^p_{dual} & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+
     \end{cases}\\
     M^p &= \begin{cases}
-        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{W^p a^p_\ell W^p} & \text{if} ~ \mathbb{K}^p=\mathbb{S}^{n_p}_+\\
-        \frac{1}{(\omega^p)^2}\Big(-A^p J (A^p)^T + 2 (A^p t^p)(A^p t^p)^T \Big) & \text{if} ~ \mathbb{K}^p=\mathbb{Q}^{n_p} \\
-        A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if} ~ \mathbb{K}^p=\mathbb{R}^{n_p}_+,
+        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{W^p a^p_\ell W^p} & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\
+        \frac{1}{(\omega^p)^2}\Big(-A^p J (A^p)^T + 2 (A^p t^p)(A^p t^p)^T \Big) & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p}, \\
+        A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+.
     \end{cases} \label{eq:NT_M}
 \end{align}
 where $W^p = (G^p)^{-2} = (x^p)^{-\frac{1}{2}}((x^p)^{\frac{1}{2}} z^p (x^p)^{\frac{1}{2}})^{\frac{1}{2}} (x^p)^{-\frac{1}{2}}$, and $\omega^p$, $t^p$ are defined as in \eqref{eq:scaling_mat_NT_socp_aux}.
@@ -347,7 +357,8 @@ Although $W^p$ appears to be very complex, it can be calculated using the follow
 \subsection{Solving the reduced equation}
 The matrix $\mathcal{M}$ in \eqref{eq:Schur_complement_Mat} is often very ill-conditioned, making the direct solution of \eqref{eq:Schur_complement_Mat} numerically unstable. 
 To address this issue, SDPT3 employs iterative methods with preconditioning. 
-Specifically, SDPT3 \cite{toh1999} uses either the Symmetric Quasi-Minimal Residual (SQMR) method \cite{Freund1994} or the Biconjugate Gradient Stabilized (BiCGSTAB) method, both with a numerically computed approximation of $\mathcal{M}^{-1}$ as the preconditioner.
+Specifically, SDPT3 \cite{toh1999} uses either the Symmetric Quasi-Minimal Residual (SQMR) method \cite{Freund1994} or the Biconjugate Gradient Stabilized (BiCGSTAB) method.
+% , both with a numerically computed approximation of $\mathcal{M}^{-1}$ as the preconditioner.
 
 In both iterative methods, it is necessary to repeatedly calculate the product of the preconditioner (approximation of $\mathcal{M}^{-1}$) and a vector.
 Two approaches can be considered for efficient and accurate computation of this matrix-vector product:
@@ -367,7 +378,7 @@ Thus, we obtain:
     \mathcal{M}^{-1}\begin{pmatrix}u \\ v \end{pmatrix} = \begin{pmatrix} \hat{u} - M^{-1} A^{\text{u}} \hat{v} \\ \hat{v} \end{pmatrix}
 \]
 where $\hat{u} = M^{-1} u$ and $\hat{v} = S^{-1}\big((A^{\text{u}})^T \hat{u} - v \big)$.
-Therefore, if the Cholesky decomposition of $M$ and the LU decomposition of $S$ are calculated in advance, the calculation of the product of $\mathcal{M}^{-1}$ and a vector reduces to three forward-backward substitutions for $M$ and two forward-backward substitutions for $S$.
+If the Cholesky decomposition of $M$ and the LU decomposition of $S$ are calculated in advance, the calculation of the product of $\mathcal{M}^{-1}$ and a vector reduces to three forward-backward substitutions for $M$ and two forward-backward substitutions for $S$.
 This approach is computationally more efficient for two reasons: $M$ can use Cholesky decomposition (which is faster than LU decomposition), and $S$ is typically much smaller than $\mathcal{M}$.
 However, while this method is efficient from a computational standpoint, it has the disadvantage that $S$ tends to become extremely ill-conditioned.
 % Moreover, in practice, due to the presence of dependent constraints and numerical errors, $M$ may not be positive definite.
@@ -376,8 +387,12 @@ In the implementation of SDPT3, the second method is tried first, and if the Cho
 
 The choice of iterative method in SDPT3 depends on the preconditioning approach used.
 SDPT3 primarily uses the numerically stable SQMR method, but SQMR requires the preconditioner to be symmetric.
-When Cholesky-based preconditioning (second approach) is feasible, SQMR can be safely used since this approach is only employed when $S$ is well-conditioned, ensuring reliable numerical symmetry preservation.
-However, when LU-based preconditioning (first approach) must be used due to poor numerical conditions of $\mathcal{M}$, SDPT3 is designed to switch to the BiCGSTAB method for safety, as BiCGSTAB does not require the preconditioner to be symmetric\footnote{However, there is an implementation inconsistency: in the predictor step, SDPT3 still uses the SQMR method even with LU preconditioning.}.
+When Cholesky-based preconditioning is feasible, SQMR can be safely used.
+However, when the matrix is ill-conditioned and LU decomposition must be used, the LU factorization may not accurately preserve the symmetry of the original matrix. 
+Therefore, SDPT3 switches to BiCGSTAB for safety, as it does not require the preconditioner to be symmetric.\footnote{
+  However, there is an implementation inconsistency: in the predictor step (\texttt{linsysolve.m}, called by \texttt{HKMpred.m} and \texttt{NTpred.m}), SDPT3 still uses the SQMR method even with LU preconditioning. 
+  The empirical success of SDPT3 across diverse problem instances suggests that SQMR remains robust to the small numerical asymmetries that may arise in LU-based preconditioning.
+}
 
 Both approaches can be further optimized by exploiting the sparsity of the problem. 
 Details are discussed in Section~\ref{sec:exploit_sparsity_socp_lp}.
@@ -391,12 +406,13 @@ In this section, we explain the method for calculating the step sizes $\alpha_P$
   \;=\; 
   \bigl(x + \alpha_P\,\Delta x,\;\; y + \alpha_D\,\Delta y,\;\; z + \alpha_D\,\Delta z\bigr).
 \]
-
 The step sizes must be chosen such that the new iterates satisfy
 \[
-  x + \alpha_P \Delta x \;\in\; \operatorname{int}\bigl(\mathbb{K}\bigr),
+  x^+   % x + \alpha_P \Delta x 
+  \;\in\; \operatorname{int}\bigl(\mathbb{K}\bigr),
   \quad
-  z + \alpha_D \Delta z \;\in\; \operatorname{relint}\bigl((\mathbb{K})^*\bigr).
+  z^+   % z + \alpha_D \Delta z 
+  \;\in\; \operatorname{relint}\bigl((\mathbb{K})^*\bigr).
 \]
 To ensure this, we first compute the maximum feasible step lengths
 \[
@@ -413,6 +429,7 @@ and then use a constant $\gamma\in(0,1)$ (e.g., $\gamma=0.99$) to obtain the act
     = \gamma \,\alpha_z.
 \]
 
+
 \subsubsection{Computation of $\alpha_x$}
 Let \[
   \alpha^p_x:=\sup\{\alpha \geq 0 \mid x^p + \alpha \Delta x^p \in \mathbb{K}^p\} \quad (p\in P)
@@ -422,10 +439,10 @@ Below we describe the computation of the maximum feasible step length $\alpha^p_
 
 \paragraph{Semidefinite cone: $\mathbb{K}^p = \mathbb{S}^{n_p}_+$.}
 Using the Cholesky decomposition $x^p=LL^T$ of $x^p$,
-\[\alpha^p_x = \sup\{\alpha \geq 0 \mid I + \alpha L^{-1} \Delta x^p (L^T)^{-1} \in \mathbb{K}^p\}\]
-holds, thus if $\lambda_{\max}$ is the largest eigenvalue of $-L^{-1} \Delta x^p (L^T)^{-1}$,
+\[\alpha^p_x = \sup\{\alpha \geq 0 \mid I + \alpha L^{-1} \Delta x^p L^{-T} \in \mathbb{K}^p\}\]
+holds, thus if $\lambda_{\max}$ is the largest eigenvalue of $-L^{-1} \Delta x^p L^{-T}$,
 \[\alpha^p_x = \begin{cases}
-    1/\lambda_{\max} & \text{if} ~ \lambda_{\max} > 0 \\
+    1/\lambda_{\max} & \text{if } \lambda_{\max} > 0, \\
     +\infty & \text{otherwise}
 \end{cases}\]
 is obtained.
@@ -454,8 +471,8 @@ where the discriminant is $d:=b^2-ac$.
 Since $x^p\in \operatorname{int}(\mathbb{Q}^{n_p})$ is assumed, we have $c = (x^p_0)^2 - \|\bar{x}^p\|^2 > 0$.
 Hence the quadratic equation $f^p(\alpha) = 0$ has positive solutions only in the following three cases:
 \begin{enumerate}
-    \item When $a<0$, $\alpha=\frac{-b-\sqrt{d}}{a}$ is the only positive solution.
-    \item When $a=0$ and $b<0$, $\alpha=-\frac{c}{2b}$ is the only positive solution.
+    \item When $a<0$, $\alpha=\frac{-b-\sqrt{d}}{a}$ is the unique positive solution.
+    \item When $a=0$ and $b<0$, $\alpha=-\frac{c}{2b}$ is the unique positive solution.
     \item When $a>0$, $b<0$, and $d\geq 0$, $\alpha=\frac{-b-\sqrt{d}}{a}$ is the smallest positive solution.
 \end{enumerate}
 Furthermore, these solutions always satisfy $x^p_0+\alpha \Delta x^p_0\geq 0$.
@@ -467,28 +484,28 @@ and throughout this interval $x^p_0+\alpha \Delta x^p_0\geq 0$ holds.)
 
 Therefore,
 \begin{equation*}
-    \alpha^p_x=\begin{cases}
-       \frac{-b - \sqrt{d}}{a} & \text{if } (a < 0) \text{ or } (a > 0 \text{ and } b < 0 \text{ and } d \geq 0)\\
-       -\frac{c}{2b} & \text{if } a=0 \text{ and } b<0\\
-       +\infty & \text{otherwise}
+    \alpha^p_x = \begin{cases}
+       \frac{-b - \sqrt{d}}{a} & \text{if } (a < 0) \text{ or } (a > 0 \text{ and } b < 0 \text{ and } d \geq 0),\\
+       -\frac{c}{2b} & \text{if } a = 0 \text{ and } b < 0,\\
+       +\infty & \text{otherwise}.
     \end{cases}
 \end{equation*}
 
-\paragraph{Nonnegative orthant: $\mathbb{K}^p = \mathbb{R}^{n_p}_+$.}
-For each component $i=1,2,\ldots,n_p$, define
+\paragraph{Linear cone: $\mathbb{K}^p = \mathbb{R}^{n_p}_+$.}
+For each $i = 1, 2, \ldots, n_p$, define
 \[
-t_i= \begin{cases}
-    -x^p_i / \Delta x^p_i & \text{if } \Delta x^p_i < 0 \\
+t_i = \begin{cases}
+    -x^p_i / \Delta x^p_i & \text{if } \Delta x^p_i < 0, \\
     +\infty & \text{otherwise}.
 \end{cases}
 \]
 Then
 \[
-    \alpha^p_x = \min\{t_i \mid i=1,2,\ldots,n_p\}.
+    \alpha^p_x = \min\{t_i \mid i = 1, 2, \ldots, n_p\}.
 \]
 
-\paragraph{Free variables: $\mathbb{K}^p = \mathbb{R}^{n_p}$.}
-In this case, $\alpha^p_x=+\infty$ since there are no constraints on $x^p$.
+\paragraph{Unrestricted variables: $\mathbb{K}^p = \mathbb{R}^{n_p}$.}
+In this case, $\alpha^p_x = +\infty$ since there are no constraints on $x^p$.
 
 
 \subsubsection{Computation of $\alpha_z$}
@@ -515,10 +532,6 @@ SDPT3 employs the following empirically effective initialization: $y = 0$, and f
         0, & \text{if } p\in P^{\text{u}},
     \end{cases}
 \]
-% is used as the initial point\footnote{If it is unknown whether problems (P) and (D) have feasible solutions or if they do not have any interior points, converting to a Homogeneous Self-Dual (HSD) model may be effective.
-% For example, in the 3-parameter HSD model proposed by Wright \cite{Wright1997},
-% auxiliary variables $(\tau, \kappa, \theta)$ are introduced to construct an extended problem, and applying interior-point methods to this can stabilize numerical calculations even when the feasibility is unknown.
-% However, this method may increase the number of iterations when starting from infeasible initial points, so it is often used depending on the scale and characteristics of the problem \cite{toh1999}.}. 
 where
 \begin{align*}
     \zeta^p 
@@ -528,8 +541,8 @@ where
     \quad
     \quad
     \theta^p = \begin{cases}
-        n^p, & \mathbb{K}^p=\mathbb{S}^{n_p}_+,\\
-        \sqrt{n^p}, & \mathbb{K}^p=\mathbb{Q}^{n_p},\\
+        n^p, & \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\
+        \sqrt{n^p}, & \mathbb{K}^p = \mathbb{Q}^{n_p},\\
         1, & \text{otherwise},
     \end{cases}
     \\[6pt]
@@ -607,5 +620,5 @@ Under these definitions, the iterations are terminated when any of the following
       \end{itemize}
 \end{enumerate}
 In practice, it is also important to terminate iterations when $\mathtt{relgap}$, $\mathtt{pinfeas}$, and $\mathtt{dinfeas}$ take relatively small values and there is little improvement in the last few iterations.
-In SDPT3 \cite{toh1999}, various termination conditions are implemented in \texttt{sqlpcheckconvg.m}.
+In SDPT3 \cite{toh1999}, various heuristic termination conditions are implemented in \texttt{sqlpcheckconvg.m}.
 
