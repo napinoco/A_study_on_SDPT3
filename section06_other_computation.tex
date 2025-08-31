@@ -1,12 +1,13 @@
 \section{Other computation techniques}\label{sec:other_computation}
 \subsection{Perturbation of \boldmath $M$ }
-In practice, $M$ may become numerically ill-conditioned due to several factors: roundoff errors, rank-deficient constraint matrices, and the inherent nature of interior-point methods where approaching optimality ($\mu \to 0$) leads to increasingly poor conditioning as complementarity gaps narrow.
+In practice, $M_{\text{sparse}}$ may become numerically ill-conditioned due to several factors: 
+roundoff errors, rank-deficient constraint matrices, and the inherent nature of interior-point methods where approaching optimality ($\mu \to 0$) leads to increasingly poor conditioning as complementarity gaps narrow.
 To ensure numerical stability of the Cholesky factorization, SDPT3 employs an adaptive perturbation strategy:
 \[
-  M \;\leftarrow\; M + \rho D_M + \lambda \mathcal{A}\mathcal{A}^T
+  M_{\text{sparse}} \;\leftarrow\; M_{\text{sparse}} + \rho D_{M_{\text{sparse}}} + \lambda \sum_{p\in P\setminus P^{\text{u}}}A^p_{\text{sparse}} (A^p_{\text{sparse}})^T
 \]
-where $D_M$ is a diagonal matrix formed from the diagonal elements of $M$, and parameters $\rho, \lambda$ decrease geometrically with iterations.\footnote{
-  Intuitively, the diagonal term $\rho D_M$ improves conditioning while preserving solution accuracy, while $\lambda \mathcal{A}\mathcal{A}^T$ ensures numerical stability along the constraint directions.
+where $D_{M_{\text{sparse}}}$ is a diagonal matrix formed from the diagonal elements of $M_{\text{sparse}}$, and parameters $\rho, \lambda$ decrease geometrically with iterations.\footnote{
+  Intuitively, the diagonal term $\rho D_{M_{\text{sparse}}}$ improves conditioning while preserving solution accuracy, while $\lambda \mathcal{A}\mathcal{A}^T$ ensures numerical stability along the constraint directions.
 }
 When extreme ill-conditioning is detected (e.g., condition number is greater than $10^{14}$), diagonal elements below $10^{-8}$ may be increased to $1$, but only when very few such elements exist.
 
@@ -47,10 +48,9 @@ where the parameters are defined as:
     \bar{\alpha} &= \frac{1}{\theta_0} (\inprod{x_0}{z_0} + \tau_0 \kappa_0)
 \end{align*}
 
-According to Toh et al.~\cite{toh1999}, if the feasible region of (P) and (D) is non-empty but lacks an interior point, converting to the HSD model yields superior accuracy despite increased computational cost.
+Toh et al.~\cite{toh1999} reported that if the feasible region of (P) and (D) is non-empty but lacks an interior point, converting to the HSD model yields superior accuracy despite increased computational cost.
 This is particularly important when unrestricted blocks exist (i.e., $\exists p\in P$ such that $\mathbb{K}^p=\mathbb{R}^{n_p}$), as the dual cone $(\mathbb{K}^p)^*=\{0\}$ implies that there is no interior point in the dual feasible region.
-
-SDPT3 implements this HSD transformation when appropriate.
+SDPT3 applies this HSD transformation automatically when $\nu^p = 0$ for all $p \in P$ and $\mathbb{K}^p=\mathbb{R}^{n_p}$ for some $p\in P$.
 The standard algorithm cannot be directly applied to the HSD model and requires modifications, which are detailed in \cite{toh1999}.
 
 \medskip
@@ -75,9 +75,9 @@ while the dual variables are perturbed by adding $\alpha \mu e^p$, where $e^p$ i
 
 \medskip
 
-Similar numerical issues arise even in linear blocks ($\mathbb{K}^p=\mathbb{R}^{n_p}_+$) when pairs of variables effectively represent a single free variable.
+Similar numerical issues arise even in linear blocks ($\mathbb{K}^p=\mathbb{R}^{n_p}_+$) when pairs of variables effectively represent a single unrestricted variable.
 Specifically, if variables $x^p_i$ and $x^p_j$ satisfy $(a^p_k)_i = -(a^p_k)_j$ for all constraints $k=1,\ldots,m$ and $(c^p)_i = -(c^p)_j$ with $\nu^p = 0$, they exhibit the same instability pattern.
-SDPT3 detects such implicit free variables and applies the same stabilization techniques described above.
+SDPT3 detects such implicit unrestricted variables and applies the same stabilization techniques described above.
 
 
 \subsection{Preprocessing for model transformation}
@@ -115,7 +115,7 @@ This equivalence follows from the identity: for any $u,v\in\mathbb{R}^n$ and $z=
   z^H a z = 
   \begin{pmatrix}u\\ v\end{pmatrix}^T \Gamma(a) \begin{pmatrix}u\\ v\end{pmatrix}.
 \]
-The left-hand side is non-negative for all $z \in \mathbb{C}^n$ if and only if the right-hand side is non-negative for all $(u,v) \in \mathbb{R}^{2n}$.
+The left-hand side is non-negative for all $z \in \mathbb{C}^n$ if and only if the right-hand side is non-negative for all $(\begin{smallmatrix}u\\v\end{smallmatrix}) \in \mathbb{R}^{2n}$.
 
 Thus, by transforming complex variables $x \in \mathbb{H}^{n_p}_+$ to real variables $\bar{x} = \Gamma(x) \in \bar{\mathbb{S}}^{2n_p}_+$, problems on complex semidefinite cones can be reduced to problems on real semidefinite cones.
 
@@ -267,8 +267,7 @@ which reduces the bandwidth from 2 to 1.
 
 \subsubsection{Utilizing matrix symmetry}
 In blocks where $\mathbb{K}^p=\mathbb{S}_+^p$, exploiting the symmetry of matrices reduces memory usage and computation time for inner products.
-Given a real symmetric matrix $a\in \mathbb{S}^n$, the symmetric vectorization operator $\operatorname{svec}: \mathbb{S}^n \rightarrow \mathbb{R}^{n(n+1)/2}$ extracts the lower triangular part column by column, scaling off-diagonal elements by $\sqrt{2}$ to preserve inner products.
-More precisely, it concatenates the scaled lower triangular entries column by column:
+Given a real symmetric matrix $a\in \mathbb{S}^n$, the symmetric vectorization operator $\operatorname{svec}: \mathbb{S}^n \rightarrow \mathbb{R}^{n(n+1)/2}$ extracts the lower triangular part column by column, scaling off-diagonal elements by $\sqrt{2}$ to preserve inner products:
 \[ \operatorname{svec}(a) = (a_{11}, \sqrt{2}a_{21}, \ldots, \sqrt{2}a_{n1}, \quad a_{22}, \sqrt{2}a_{32}, \ldots, \sqrt{2}a_{n2}, \quad \ldots, \quad a_{nn})^T \]
 \begin{example}
 \[a = \begin{pmatrix}
@@ -280,7 +279,7 @@ More precisely, it concatenates the scaled lower triangular entries column by co
 
 \medskip
 
-The following equality holds for any symmetric matrices $a, b \in \mathbb{S}^n$:
+Indeed, the following equality holds for any symmetric matrices $a, b \in \mathbb{S}^n$:
 \[\inprod{a}{b} = \operatorname{svec}(a)^T \operatorname{svec}(b).\]
 Therefore, storing $\operatorname{svec}(a)$ instead of $a$ halves memory usage while making inner product computations more efficient.
 SDPT3 stores coefficient matrices $a^p_k$ in the $\operatorname{svec}$ format for efficiency, while maintaining $c^p$, $x^p$, and $z^p$ in matrix form for algorithmic operations.

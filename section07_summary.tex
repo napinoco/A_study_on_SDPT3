@@ -16,7 +16,7 @@ Generate infeasible starting point $(x,y,z) \leftarrow (x^0, y^0, z^0)$
     
     \STATE \textbf{System setup:}
     \STATE Compute coefficient matrices $M_{\text{sparse}}$, $A^{\text{u}}$, $U$, $-D^{-1}$ for augmented system
-    \STATE Apply matrix perturbation $M_{\text{sparse}} \leftarrow M_{\text{sparse}} + \rho D_{M_{\text{sparse}}} + \lambda \mathcal{A}\mathcal{A}^T$
+    \STATE Apply matrix perturbation $M_{\text{sparse}} \leftarrow M_{\text{sparse}} + \rho D_{M_{\text{sparse}}} + \lambda \sum A^p_{\text{sparse}}(A^p_{\text{sparse}})^T$
     \STATE Compute Cholesky decomposition of $M_{\text{sparse}}$ (or LU if Cholesky fails)
     \STATE Compute $\mathcal{A}\mathcal{H}R_{\text{dual}}$ and $R^{\text{u}}_{\text{dual}}$
     \STATE 
