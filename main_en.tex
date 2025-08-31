@@ -2,6 +2,18 @@
 \usepackage{graphicx,amsmath,amssymb}
 \usepackage{algorithm,algorithmic}
 \usepackage{appendix}
+\usepackage{xcolor}
+\usepackage{listings}
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=none,
+    showstringspaces=false,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red}
+}
 \newtheorem{example}{Example}
 \newcommand{\inprod}[2]{\left\langle #1, \, #2 \right\rangle}
 
@@ -43,6 +55,7 @@ The aim is to offer a clear and structured reference for researchers and develop
 
 \appendix
 \input{appendix_a}
+\input{appendix_b}
 
 \bibliographystyle{plain}
 \bibliography{references}
