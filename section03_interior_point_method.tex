@@ -113,9 +113,9 @@ Introducing the parameter $\sigma \in [0,1)$ and the scaling matrices $G^p$ for 
     \renewcommand{\arraystretch}{2.5}
     \left\{
     \begin{array}{rll}
-         \sum_{p \in P} \mathcal{A}^p \Delta x^p & = R_{prim} := b - \sum_{p \in P} \mathcal{A}^p x^p &  \\
-         (\mathcal{A}^p)^T \Delta y + \Delta z^p & = R_{dual}^p := c^p - z^p - (\mathcal{A}^p)^T y & (p \in P) \\
-         \mathcal{E}^p \Delta x^p + \mathcal{F}^p \Delta z^p & = R_{comp}^p := \max\{\sigma \mu, \nu^p\} e^p - \big(G^p x^p\big) \circ \big((G^p)^{-1} z^p\big) & (p \in P \setminus P^{\text{u}})
+         \sum_{p \in P} \mathcal{A}^p \Delta x^p & = R_{\text{prim}} := b - \sum_{p \in P} \mathcal{A}^p x^p &  \\
+         (\mathcal{A}^p)^T \Delta y + \Delta z^p & = R_{\text{dual}}^p := c^p - z^p - (\mathcal{A}^p)^T y & (p \in P) \\
+         \mathcal{E}^p \Delta x^p + \mathcal{F}^p \Delta z^p & = R_{\text{comp}}^p := \max\{\sigma \mu, \nu^p\} e^p - \big(G^p x^p\big) \circ \big((G^p)^{-1} z^p\big) & (p \in P \setminus P^{\text{u}})
     \end{array}
     \right.
     \label{eq:NewtonKKT}
@@ -229,15 +229,15 @@ In SDPT3, \texttt{HKM} and \texttt{NT} options are available for semidefinite an
 In this section, we reduce the search direction equation \eqref{eq:NewtonKKT} into a more manageable form. 
 Specifically, we eliminate $\Delta x^p$ and $\Delta z^p$ to obtain an equation in terms of $\Delta y$, resulting in the so-called Schur complement system.
 
-First, by solving $(\mathcal{A}^p)^T \Delta y + \Delta z^p = R_{dual}^p$ and $\mathcal{E}^p \Delta x^p + \mathcal{F}^p \Delta z^p = R_{comp}^p$ of \eqref{eq:NewtonKKT} for $\Delta z^p$ and $\Delta x^p$ respectively, we obtain the equation in terms of $\Delta y$:
+First, by solving $(\mathcal{A}^p)^T \Delta y + \Delta z^p = R_{\text{dual}}^p$ and $\mathcal{E}^p \Delta x^p + \mathcal{F}^p \Delta z^p = R_{\text{comp}}^p$ of \eqref{eq:NewtonKKT} for $\Delta z^p$ and $\Delta x^p$ respectively, we obtain the equation in terms of $\Delta y$:
 \begin{equation}
     \everymath{\displaystyle}
     \renewcommand{\arraystretch}{1.5}
     \left\{
     \begin{array}{rll}
-    \Delta z^p &= R_{dual}^p - \mathcal{A}^p(\Delta y)  & (p\in P)\\
-    \Delta x^p &= (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(\Delta z^p) \\
-               &= (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p(R_{dual}^p - \mathcal{A}^p(\Delta y))  & (p\in P\setminus P^{\text{u}})
+    \Delta z^p &= R_{\text{dual}}^p - \mathcal{A}^p(\Delta y)  & (p\in P)\\
+    \Delta x^p &= (\mathcal{E}^p)^{-1}R_{\text{comp}}^p - \mathcal{H}^p(\Delta z^p) \\
+               &= (\mathcal{E}^p)^{-1}R_{\text{comp}}^p - \mathcal{H}^p(R_{\text{dual}}^p - \mathcal{A}^p(\Delta y))  & (p\in P\setminus P^{\text{u}})
    \end{array}
    \right.
    \label{eq:sol_x_z}
@@ -250,9 +250,9 @@ Substituting \eqref{eq:sol_x_z} into the first equation of \eqref{eq:NewtonKKT},
     \left\{
     \begin{aligned}
         \sum_{p \in P\setminus P^{\text{u}}} \mathcal{A}^p\mathcal{H}^p(\mathcal{A}^p)^T\Delta y + \sum_{p \in P^{\text{u}}} \mathcal{A}^p(\Delta x^p) 
-            &= R_{prim} - \sum_{p \in P\setminus P^{\text{u}}} \mathcal{A}^p \big( (\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p \big) \\
+            &= R_{\text{prim}} - \sum_{p \in P\setminus P^{\text{u}}} \mathcal{A}^p \big( (\mathcal{E}^p)^{-1}R_{\text{comp}}^p - \mathcal{H}^p R_{\text{dual}}^p \big) \\
         (\mathcal{A}^p)^T \Delta y 
-            &= R^p_{dual} \qquad (p\in P^{\text{u}})
+            &= R^p_{\text{dual}} \qquad (p\in P^{\text{u}})
     \end{aligned}
     \right.
     \label{eq:Schur_complement}
@@ -268,7 +268,7 @@ Let the matrix $M^p \in \mathbb{S}^{m}$ satisfy
 and define:
 \begin{align*}
     M &= \sum_{p \in P \setminus P^{\text{u}}} M^p \\
-    h &= R_{prim} - \sum_{p \in P \setminus P^{\text{u}}} \mathcal{A}^p\big((\mathcal{E}^p)^{-1}R_{comp}^p - \mathcal{H}^p R_{dual}^p\big)\\
+    h &= R_{\text{prim}} - \sum_{p \in P \setminus P^{\text{u}}} \mathcal{A}^p\big((\mathcal{E}^p)^{-1}R_{\text{comp}}^p - \mathcal{H}^p R_{\text{dual}}^p\big)\\
     A^p &= \begin{pmatrix}
         (a^p_1)^T\\
         (a^p_2)^T\\
@@ -276,7 +276,7 @@ and define:
         (a^p_m)^T
     \end{pmatrix} \in \mathbb{R}^{m\times n_p} \quad (p\in P)\\
     A^{\text{u}} &= [ A^p ~ (p\in P^{\text{u}})\text{ concatenated horizontally} ]\\
-    R^{\text{u}}_{dual} &= [ R^p_{dual} ~ (p\in P^{\text{u}})\text{ concatenated vertically} ]\\
+    R^{\text{u}}_{\text{dual}} &= [ R^p_{\text{dual}} ~ (p\in P^{\text{u}})\text{ concatenated vertically} ]\\
     \Delta x^{\text{u}} &= [ \Delta x^p ~ (p\in P^{\text{u}})\text{ concatenated vertically} ]
 \end{align*}
 Then, the equation \eqref{eq:Schur_complement} can be represented in matrix form as:
@@ -292,7 +292,7 @@ Then, the equation \eqref{eq:Schur_complement} can be represented in matrix form
     = 
     \left(\begin{array}{c}
          h  \\
-         R_{dual}^{\text{u}} 
+         R_{\text{dual}}^{\text{u}} 
     \end{array}
     \right)
     \label{eq:Schur_complement_Mat}
@@ -300,12 +300,12 @@ Then, the equation \eqref{eq:Schur_complement} can be represented in matrix form
 
 \medskip
 
-In the following, we describe the specific computation of the matrix $M$ and vector $h$ in the Schur complement system \eqref{eq:Schur_complement_Mat}, namely the calculation methods for $(\mathcal{E}^p)^{-1}R^p_{comp}$, $\mathcal{H}^p R^p_{dual}$, and the matrix $M^p$ for both HKM and NT search directions. 
+In the following, we describe the specific computation of the matrix $M$ and vector $h$ in the Schur complement system \eqref{eq:Schur_complement_Mat}, namely the calculation methods for $(\mathcal{E}^p)^{-1}R^p_{\text{comp}}$, $\mathcal{H}^p R^p_{\text{dual}}$, and the matrix $M^p$ for both HKM and NT search directions. 
 The detailed derivations are omitted here; a concise guide can be found in Appendix~\ref{sec:guide_for_dir_eq}. 
 
 For both HKM and NT search directions, we have:
 \begin{equation}
-    (\mathcal{E}^p)^{-1}R^p_{comp} = \max\{\sigma\mu, \nu^p\}(z^p)^{-J} - x^p \qquad (p \in P)
+    (\mathcal{E}^p)^{-1}R^p_{\text{comp}} = \max\{\sigma\mu, \nu^p\}(z^p)^{-J} - x^p \qquad (p \in P)
     \label{eq:Einv_Rcomp}
 \end{equation}
 where $(z^p)^{-J}$ is the inverse element of $z^p$ with respect to the Jordan product $\circ$:
@@ -319,9 +319,9 @@ where $(z^p)^{-J}$ is the inverse element of $z^p$ with respect to the Jordan pr
 \medskip
 When the search direction option is set to \texttt{HKM}, SDPT3 uses:
 \begin{align}
-    \mathcal{H}^p R^p_{dual} &= \begin{cases}
-        \frac{1}{2}(x^p R^p_{dual} (z^p)^{-1} + (z^p)^{-1} R^p_{dual} x^p) & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\
-        - \Big( (x^p)^T J (z^p)^{-J} \Big) J R^p_{dual} + \inprod{(z^p)^{-J}}{R^p_{dual}} x^p + \inprod{R^p_{dual}}{x^p} (z^p)^{-J} & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p},\\
+    \mathcal{H}^p R^p_{\text{dual}} &= \begin{cases}
+        \frac{1}{2}(x^p R^p_{\text{dual}} (z^p)^{-1} + (z^p)^{-1} R^p_{\text{dual}} x^p) & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\
+        - \Big( (x^p)^T J (z^p)^{-J} \Big) J R^p_{\text{dual}} + \inprod{(z^p)^{-J}}{R^p_{\text{dual}}} x^p + \inprod{R^p_{\text{dual}}}{x^p} (z^p)^{-J} & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p},\\
         \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} \Delta z^p & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+
     \end{cases} \label{eq:HKM_HRd}\\
     M^p &= \begin{cases} 
@@ -333,10 +333,10 @@ When the search direction option is set to \texttt{HKM}, SDPT3 uses:
 \medskip
 When the search direction option is set to \texttt{NT}, SDPT3 uses:
 \begin{align}
-    \mathcal{H}^p R^p_{dual} &= \begin{cases}
-        W^p R^p_{dual} W^p & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+, \\
-        \frac{1}{(\omega^p)^2} \Big(-J R^p_{dual} + 2\inprod{R^p_{dual}}{t^p}t^p\Big) & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p},\\
-        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} R^p_{dual} & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+
+    \mathcal{H}^p R^p_{\text{dual}} &= \begin{cases}
+        W^p R^p_{\text{dual}} W^p & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+, \\
+        \frac{1}{(\omega^p)^2} \Big(-J R^p_{\text{dual}} + 2\inprod{R^p_{\text{dual}}}{t^p}t^p\Big) & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p},\\
+        \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} R^p_{\text{dual}} & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+
     \end{cases}\\
     M^p &= \begin{cases}
         \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{W^p a^p_\ell W^p} & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\
@@ -573,13 +573,13 @@ Specifically, we first define the following quantities to measure the dual gap a
 \]
 \[
   \mathtt{pinfeas}
-  := \frac{\|\,R_{prim}\|}{\,1 + \|b\|\,},
+  := \frac{\|\,R_{\text{prim}}\|}{\,1 + \|b\|\,},
   \quad
   \mathtt{dinfeas}
-  := \frac{\sum_{p\in P}\|\,R^p_{dual}\|}
+  := \frac{\sum_{p\in P}\|\,R^p_{\text{dual}}\|}
            {\,1 + \sum_{p\in P}\|\,c^p\|\,}.
 \]
-where $R_{prim}$ and $R_{dual}^p$ are defined in equation \eqref{eq:NewtonKKT}.
+where $R_{\text{prim}}$ and $R_{\text{dual}}^p$ are defined in equation \eqref{eq:NewtonKKT}.
 These represent the primal and dual infeasibility residuals, respectively.
 Note that if $\mathtt{pinfeas} = 0$ and $\mathtt{dinfeas} = 0$,
 \[
