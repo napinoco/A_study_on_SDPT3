@@ -14,7 +14,7 @@ When extreme ill-conditioning is detected (e.g., condition number is greater tha
 These perturbations involve a delicate trade-off: while larger perturbations ensure numerical stability, they also distance the solution from the original problem, potentially compromising accuracy. SDPT3 implements a sophisticated perturbation strategy that carefully balances these competing concerns through iteration-dependent parameters and conditional application; for the complete algorithm, see the \texttt{linsysolve.m} function.
 
 
-\subsection{Handling free variables}
+\subsection{Handling unrestricted variables}
 If $\nu^p = 0$ for all $p \in P$, the problem (P) and (D) can be transformed into the following 3-parameter Homogeneous self-dual (HSD) model \cite{Wright1997}.
 Given an initial point 
 \[
@@ -57,7 +57,7 @@ The standard algorithm cannot be directly applied to the HSD model and requires 
 
 When $\nu^p \neq 0$ for some $p \in P$, the problem (P) and (D) cannot be converted to the HSD model.
 As seen from \eqref{eq:Schur_complement_Mat}, unrestricted blocks (i.e., $\mathbb{K}^p = \mathbb{R}^{n_p}$) require solving augumented systems involving $A^{\text{u}}$, which increases computational cost.
-To avoid this overhead, SDPT3 eliminates free variables $x^p \in \mathbb{R}^{n_p}$ by splitting them into non-negative components:
+To avoid this overhead, SDPT3 eliminates unrestricted variables $x^p \in \mathbb{R}^{n_p}$ by splitting them into non-negative components:
 \[
    x^p = x^p_+ - x^p_-, \quad \text{where } (x^p_+, x^p_-) \in \mathbb{R}^{2n_p}_+
 \]
@@ -267,14 +267,14 @@ which reduces the bandwidth from 2 to 1.
 
 \subsubsection{Utilizing matrix symmetry}
 In blocks where $\mathbb{K}^p=\mathbb{S}_+^p$, exploiting the symmetry of matrices reduces memory usage and computation time for inner products.
-Given a real symmetric matrix $a\in \mathbb{S}^n$, the symmetric vectorization operator $\operatorname{svec}: \mathbb{S}^n \rightarrow \mathbb{R}^{n(n+1)/2}$ extracts the lower triangular part column by column, scaling off-diagonal elements by $\sqrt{2}$ to preserve inner products:
-\[ \operatorname{svec}(a) = (a_{11}, \sqrt{2}a_{21}, \ldots, \sqrt{2}a_{n1}, \quad a_{22}, \sqrt{2}a_{32}, \ldots, \sqrt{2}a_{n2}, \quad \ldots, \quad a_{nn})^T \]
+Given a real symmetric matrix $a\in \mathbb{S}^n$, the symmetric vectorization operator $\operatorname{svec}: \mathbb{S}^n \rightarrow \mathbb{R}^{n(n+1)/2}$ extracts the upper triangular part column by column, scaling off-diagonal elements by $\sqrt{2}$ to preserve inner products:
+\[ \operatorname{svec}(a) = (a_{11}, \quad \sqrt{2}\,a_{12},\, a_{22},\, \quad \sqrt{2}\,a_{13},\, \sqrt{2}\,a_{23},\, a_{33},\, \quad \ldots \quad  \sqrt{2}\,a_{1n},\, \sqrt{2}\,a_{2n},\, \ldots,\, a_{nn})^T \]
 \begin{example}
 \[a = \begin{pmatrix}
     1 & 2 & 3\\
     2 & 4 & 5\\
     3 & 5 & 6
-\end{pmatrix} \rightarrow \operatorname{svec}(a) = (1, ~ 2\sqrt{2}, ~ 3\sqrt{2}, ~ 4, ~ 5\sqrt{2}, ~ 6)^T\]
+\end{pmatrix} \rightarrow \operatorname{svec}(a) = (1, ~ 2\sqrt{2}, ~ 4, ~ 3\sqrt{2}, ~ 5\sqrt{2}, ~ 6)^T\]
 \end{example}
 
 \medskip
