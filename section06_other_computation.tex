@@ -237,7 +237,7 @@ To identify the sparsity pattern, SDPT3 first constructs the aggregate matrix
   t^p = |c^p| + \sum_{k=1}^m |a^p_k|
 \]
 which represents the combined sparsity structure of all coefficient matrices.
-The Reverse Cuthill-McKee algorithm is then applied to obtain the permutation $\sigma$ that reduces the bandwidth (the maximum distance of non-zero elements from the diagonal).
+The Reverse Cuthill-McKee algorithm \cite{Cuthill1969,Golub2013} is then applied to obtain the permutation $\sigma$ that reduces the bandwidth (the maximum distance of non-zero elements from the diagonal).
 Since reducing bandwidth typically reduces fill-in during Cholesky decomposition, this reordering improves computational efficiency.\footnote{
   While the benefits are problem-dependent, this reordering often improves efficiency in practice. 
   The Newton system matrix $M = \mathcal{A}\mathcal{H}\mathcal{A}^T$ tends to inherit sparsity from the coefficient matrices $\mathcal{A}$, and iterates $x^p, z^p$ often reflect the coefficient structure $(a_k^p)$, particularly near optimality. 

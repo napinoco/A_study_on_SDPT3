@@ -152,3 +152,8 @@ b = [6; 4; 5];
 [x, y, info] = sdpt3(blk, At, C, b);
 \end{lstlisting}
 \end{example}
+
+\paragraph{Efficient Usage Note}
+In SDPT3, it is possible to group multiple semidefinite cones or second-order cones into a single cell entry, rather than treating each cone as a separate block. 
+Since MATLAB's iteration over cell arrays can be slow, such consolidated input can be computationally more efficient, particularly when dealing with numerous small cones of the same type. 
+For detailed information on this advanced usage, see \cite{Toh2012}.
