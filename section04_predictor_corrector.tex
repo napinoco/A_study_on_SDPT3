@@ -1,9 +1,9 @@
 \section{Predictor-Corrector Method}
-In this chapter, we introduce the predictor-corrector method\footnote{The name predictor-corrector originates from numerical methods for ordinary differential equations.}.
-This method is widely adopted in many software packages as an practically efficient way to solve problems.
+In this section, we introduce the predictor-corrector method.\footnote{The name predictor-corrector originates from numerical methods for ordinary differential equations.}
+This method is widely adopted in many software packages as a practically efficient approach for solving optimization problems.
 The predictor-corrector method was originally proposed by Mehrotra \cite{Mehrotra1992}.
-The version presented by Wright \cite{Wright1997} has become widely used in the field.
-Here, we introduce the formulation by Toh et al. \cite{toh1999}, which, although the process differs slightly, is equivalent to Wright's version.
+Wright \cite{Wright1997} later provided a clear and theoretically elegant presentation of the method, which has become a standard reference.
+Here, we introduce the formulation by Toh et al. \cite{toh1999}, which is equivalent to the formulation presented by Wright but differs slightly in its computational procedure.
 
 The predictor-corrector method computes the search direction $(\Delta x, \Delta y, \Delta z)$ in two stages.
 In the first stage (predictor step), we compute an affine scaling direction $(\delta x, \delta y, \delta z)$ by setting $\sigma = 0$, which aims to reduce the duality gap aggressively.
@@ -11,11 +11,11 @@ Based on the progress achieved by this predictor direction, we determine an appr
 
 
 \paragraph{Predictor Step}
-First, set $\sigma=0$ to compute the affine scaling direction.
-This replaces $R^p_{\text{comp}}$ in equation \eqref{eq:NewtonKKT} with
+First, we set $\sigma=0$ to compute the affine scaling direction.
+In other words, we replace $R^p_{\text{comp}}$ in \eqref{eq:NewtonKKT} with
 \[R^{p,\text{pred}}_{\text{comp}}=\nu^p \, e^p - (G^p x^p) \circ ((G^p)^{-1} z^p).\]
-Solving equation \eqref{eq:NewtonKKT} with this modification yields the predictor direction $(\delta x, \delta y, \delta z)$.
-Next, compute trial step sizes $\alpha_P, \alpha_D$ for this predictor direction using the method in Section~\ref{sec:step_size}, without actually updating the variables.
+Solving \eqref{eq:NewtonKKT} with this modification yields the predictor direction $(\delta x, \delta y, \delta z)$.
+Next, we compute trial step sizes $\alpha_P, \alpha_D$ for this predictor direction using the method described in Section~\ref{sec:step_size}, without actually updating the variables.
 These step sizes are used to estimate the potential reduction in the duality gap and to determine an appropriate centering parameter $\sigma$.
 Specifically, the centering parameter is computed as
 \[
@@ -30,23 +30,21 @@ SDPT3 adaptively selects $\psi$ based on a default parameter $\hat{\psi}=3$:
     \max\{1, \min\{\hat{\psi}, 3 \min(\alpha_P, \alpha_D)^2\}\} & \text{otherwise}.
 \end{cases}
 \]
-Recall that $\mu$ is defined as in equation \eqref{eq:mu}.
+Recall that $\mu$ is defined as in \eqref{eq:mu}.
 
 \paragraph{Corrector Step}
 With the computed centering parameter $\sigma$, we now solve for the final search direction.
-The complementarity residual in equation \eqref{eq:NewtonKKT} is replaced with
-\[R^{p,\text{corr}}_{\text{comp}}=\max\{\sigma \mu, \nu^p\} e^p - \big(G^p x^p\big) \circ\big ((G^p)^{-1} z^p\big) - \big(G^p \delta x^p\big)\circ\big((G^p)^{-1} \delta z^p\big),\]
+The complementarity residual in \eqref{eq:NewtonKKT} is replaced with
+\[R^{p,\text{corr}}_{\text{comp}}=\max\{\sigma \mu, \nu^p\} e^p - \big(G^p x^p\big) \circ \big((G^p)^{-1} z^p\big) - \big(G^p \delta x^p\big)\circ\big((G^p)^{-1} \delta z^p\big),\]
 where the last term is the second-order correction from the predictor step.
-Solving equation \eqref{eq:NewtonKKT} with this modification yields the final search direction $(\Delta x, \Delta y, \Delta z)$.
+Solving \eqref{eq:NewtonKKT} with this modification yields the final search direction $(\Delta x, \Delta y, \Delta z)$.
 We then compute the step sizes $\beta_P, \beta_D$ for this search direction using the method in Section~\ref{sec:step_size}, and update the solution as
 \[(x^+, y^+, z^+) = (x, y, z) + (\beta_P \Delta x, \beta_D \Delta y, \beta_D \Delta z).\]
 
-\medskip
-\medskip
+\bigskip
 A key advantage of the predictor-corrector method is its computational efficiency.
 Between the predictor and corrector steps, only the complementarity residual $R^p_{\text{comp}}$ changes, which affects only the right-hand side vector $h$ in the Schur complement system \eqref{eq:Schur_complement_Mat}.
 The coefficient matrix $\mathcal{M}$ and its factorization (LU or Cholesky) computed in the predictor step can be reused in the corrector step.
-
 Furthermore, the right-hand side vector can be efficiently updated.
 Letting $h_{\text{pred}}$ and $h_{\text{corr}}$ denote the vectors for the predictor and corrector steps respectively, we have
 \[h_{\text{corr}}=h_{\text{pred}} + \sum_{p\in P\setminus P^{\text{u}}} \mathcal{A}^p (\mathcal{E}^p)^{-1} \big((G^p \delta x^p) \circ ((G^p)^{-1} \delta z^p) \big).\]
