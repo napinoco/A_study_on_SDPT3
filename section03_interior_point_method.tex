@@ -354,7 +354,7 @@ Although $W^p$ appears to be very complex, it can be calculated using the follow
 \end{enumerate}
 
 
-\subsection{Solving the reduced equation}
+\subsection{Solving the reduced equation} \label{sec:solve_reduced_eq}
 The matrix $\mathcal{M}$ in \eqref{eq:Schur_complement_Mat} is often very ill-conditioned, making the direct solution of \eqref{eq:Schur_complement_Mat} numerically unstable. 
 To address this issue, SDPT3 employs iterative methods with preconditioning. 
 Specifically, SDPT3 \cite{toh1999} uses either the Symmetric Quasi-Minimal Residual (SQMR) method \cite{Freund1994} or the Biconjugate Gradient Stabilized (BiCGSTAB) method.
