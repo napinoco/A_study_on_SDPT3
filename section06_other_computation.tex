@@ -1,5 +1,5 @@
 \section{Other computation techniques}\label{sec:other_computation}
-\subsection{Perturbation of \boldmath $M$ }
+\subsection{Perturbation of \boldmath $M_{\text{sparse}}$ }
 In practice, $M_{\text{sparse}}$ may become numerically ill-conditioned due to several factors: 
 roundoff errors, rank-deficient constraint matrices, and the inherent nature of interior-point methods where approaching optimality ($\mu \to 0$) leads to increasingly poor conditioning as complementarity gaps narrow.
 To ensure numerical stability of the Cholesky factorization, SDPT3 employs an adaptive perturbation strategy:
@@ -7,7 +7,7 @@ To ensure numerical stability of the Cholesky factorization, SDPT3 employs an ad
   M_{\text{sparse}} \;\leftarrow\; M_{\text{sparse}} + \rho D_{M_{\text{sparse}}} + \lambda \sum_{p\in P\setminus P^{\text{u}}}A^p_{\text{sparse}} (A^p_{\text{sparse}})^T
 \]
 where $D_{M_{\text{sparse}}}$ is a diagonal matrix formed from the diagonal elements of $M_{\text{sparse}}$, and parameters $\rho, \lambda$ decrease geometrically with iterations.\footnote{
-  Intuitively, the diagonal term $\rho D_{M_{\text{sparse}}}$ improves conditioning while preserving solution accuracy, while $\lambda \mathcal{A}\mathcal{A}^T$ ensures numerical stability along the constraint directions.
+  Intuitively, the diagonal term $\rho D_{M_{\text{sparse}}}$ improves conditioning while preserving solution accuracy, and $\lambda \sum_{p\in P\setminus P^{\text{u}}}A^p_{\text{sparse}} (A^p_{\text{sparse}})^T$ ensures numerical stability along the constraint directions.
 }
 When extreme ill-conditioning is detected (e.g., condition number is greater than $10^{14}$), diagonal elements below $10^{-8}$ may be increased to $1$, but only when very few such elements exist.
 

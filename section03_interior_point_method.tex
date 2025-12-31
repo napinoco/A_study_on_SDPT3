@@ -88,10 +88,11 @@ where $e^p$ is the identity element for this operator:
   \end{cases}
 \]
 The bilinear operator $\circ$ is called the Jordan product on $\mathbb{K}^p$.
-Note that in the case of $\mathbb{S}^{n_p}_+$, it is usually written as $x^p \circ z^p = \frac{1}{2}(x^p z^p + z^p x^p)$, 
+\textbf{
+Note that in the case of $\mathbb{S}^{n_p}_+$, it is usually defined as $x^p \circ z^p = \frac{1}{2}(x^p z^p + z^p x^p)$, 
 but in this paper, we extend this operator to non-symmetric matrices and use the notation $x^p \circ z^p = \frac{1}{2} \left( x^p (z^p)^T + z^p (x^p)^T \right)$ for the sake of notational simplicity.
 While this extension of the operator $\circ$ to non-symmetric matrices does not satisfy the definition of Jordan algebra \cite{Faraut1994}, it allows for unified and simplified notation (especially in equations like \eqref{eq:NewtonKKT}).
-
+}
 Now, consider replacing each $\nu^p$ ($p \in P$) in the complementarity conditions with a common positive parameter $\mu > 0$. 
 Then, under mild regularity conditions, the perturbed KKT system \eqref{eq:KKTcond} provides a unique solution $\big( x(\mu),\, y(\mu),\, z(\mu) \big)$ within the feasible region. 
 This solution forms a differentiable trajectory with respect to $\mu$, called the central path $T$:
@@ -105,7 +106,11 @@ In the following sections, we will detail the main components of this algorithm,
 
 \subsection{Search Directions} \label{sec:direction}
 \subsubsection{Framework of the Search Direction}
-We assume that a current iterate $(x,\,y,\,z) \in \operatorname{int}(\mathbb{K}) \times \mathbb{R}^m \times \operatorname{int}(\mathbb{K}^*)$ is given, where $\mathbb{K} := \mathbb{K}^1 \times \cdots \times \mathbb{K}^{p_{\max}}$ and $\mathbb{K}^* := (\mathbb{K}^1)^* \times \cdots \times (\mathbb{K}^{p_{\max}})^*$, with $x = (x^1, \ldots, x^{p_{\max}})$ and $z = (z^1, \ldots, z^{p_{\max}})$.
+We assume that a current iterate $(x,\,y,\,z) \in \operatorname{int}(\mathbb{K}) \times \mathbb{R}^m \times \operatorname{relint}(\mathbb{K}^*)$ is given, where $\mathbb{K} := \mathbb{K}^1 \times \cdots \times \mathbb{K}^{p_{\max}}$ and $\mathbb{K}^* := (\mathbb{K}^1)^* \times \cdots \times (\mathbb{K}^{p_{\max}})^*$, with $x = (x^1, \ldots, x^{p_{\max}})$ and $z = (z^1, \ldots, z^{p_{\max}})$.
+\footnote{
+  We use $\operatorname{relint}$ to handle the case where $\mathbb{K}^p = \mathbb{R}^{n_p}$, for which the dual cone $(\mathbb{K}^p)^* = \{0\}$ satisfies $\operatorname{relint}(\{0\}) = \{0\} \neq \operatorname{int}(\{0\}) = \emptyset$. 
+  For $\mathbb{K}^p = \mathbb{S}^{n_p}_+$, $\mathbb{Q}^{n_p}$, or $\mathbb{R}^{n_p}_+$, we have $\operatorname{relint}((\mathbb{K}^p)^*) = \operatorname{int}((\mathbb{K}^p)^*)$.
+}
 
 To compute the next iterate along the central path, we apply Newton's method to the perturbed KKT system. 
 Introducing the parameter $\sigma \in [0,1)$ and the scaling matrices $G^p$ for $p \in P$, the search direction $(\Delta x,\, \Delta y,\, \Delta z)$ is obtained as the solution to the following equations:
@@ -339,7 +344,7 @@ When the search direction option is set to \texttt{NT}, SDPT3 uses:
         \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} R^p_{\text{dual}} & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+
     \end{cases}\\
     M^p &= \begin{cases}
-        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{W^p a^p_\ell W^p} & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\
+        \text{a matrix whose $(k,\ell)$-elements are given by } \inprod{a^p_k}{W^p\, a^p_\ell\, W^p} & \text{if } \mathbb{K}^p = \mathbb{S}^{n_p}_+,\\
         \frac{1}{(\omega^p)^2}\Big(-A^p J (A^p)^T + 2 (A^p t^p)(A^p t^p)^T \Big) & \text{if } \mathbb{K}^p = \mathbb{Q}^{n_p}, \\
         A^p \operatorname{diag}(x^p) \operatorname{diag}(z^p)^{-1} (A^p)^T & \text{if } \mathbb{K}^p = \mathbb{R}^{n_p}_+.
     \end{cases} \label{eq:NT_M}
@@ -390,7 +395,7 @@ SDPT3 primarily uses the numerically stable SQMR method, but SQMR requires the p
 When Cholesky-based preconditioning is feasible, SQMR can be safely used.
 However, when the matrix is ill-conditioned and LU decomposition must be used, the LU factorization may not accurately preserve the symmetry of the original matrix. 
 Therefore, SDPT3 switches to BiCGSTAB for safety, as it does not require the preconditioner to be symmetric.\footnote{
-  However, there is an implementation inconsistency: in the predictor step (\texttt{linsysolve.m}, called by \texttt{HKMpred.m} and \texttt{NTpred.m}), SDPT3 still uses the SQMR method even with LU preconditioning. 
+  However, there is an implementation inconsistency: in the predictor step (\texttt{linsysolve.m}, called by \texttt{HKMpred.m} and \texttt{NTpred.m}), SDPT3 version 4.0 still uses the SQMR method even with LU preconditioning. 
   The empirical success of SDPT3 across diverse problem instances suggests that SQMR remains robust to the small numerical asymmetries that may arise in LU-based preconditioning.
 }
 

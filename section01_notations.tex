@@ -90,7 +90,10 @@ whereas the relative interior is defined as the interior within the affine hull 
 \[
 \operatorname{relint}(S)
 =\{\,
-x \in S 
+x \in S
 \mid \exists\, \epsilon > 0 \quad \text{s.t.} \quad \bigl(\operatorname{aff}(S)\cap B(x,\epsilon)\bigr)\,\subseteq\,S
 \}.
 \]
+In this paper, we use $\operatorname{relint}$ instead of $\operatorname{int}$ to properly handle the singleton set $\{0\}$:
+we have $\operatorname{relint}(\{0\}) = \{0\}$ while $\operatorname{int}(\{0\}) = \emptyset$.
+For all proper cones considered in this paper ($\mathbb{R}^n_+$, $\mathbb{Q}^n$, $\mathbb{S}^n_+$), the two notions coincide.
